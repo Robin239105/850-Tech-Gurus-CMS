@@ -60,17 +60,17 @@ const navItems: NavSection[] = [
     items: [
       { name: 'All Clients', href: '/admin/clients', icon: Users },
       { name: 'Add New Client', href: '/admin/clients/new', icon: Users },
-      { name: 'Billing & Plans', href: '/admin/settings', icon: Heart },
-      { name: 'Permissions & Roles', href: '/admin/settings', icon: Settings },
+      { name: 'Billing & Plans', href: '/admin/billing', icon: Heart },
+      { name: 'Permissions & Roles', href: '/admin/permissions', icon: Settings },
     ],
   },
   {
     section: 'Content Oversight',
     items: [
-      { name: 'All Pages', href: '/admin/clients', icon: FileText },
-      { name: 'All Media', href: '/admin/clients', icon: ImageIcon },
-      { name: 'All Form Submissions', href: '/admin/clients', icon: FileText },
-      { name: 'All Orders', href: '/admin/clients', icon: ShoppingCart },
+      { name: 'All Pages', href: '/admin/pages', icon: FileText },
+      { name: 'All Media', href: '/admin/media', icon: ImageIcon },
+      { name: 'All Form Submissions', href: '/admin/forms', icon: FileText },
+      { name: 'All Orders', href: '/admin/orders', icon: ShoppingCart },
     ],
   },
   {
@@ -78,7 +78,7 @@ const navItems: NavSection[] = [
     items: [
       { name: 'Analytics & Reports', href: '/admin/analytics', icon: BarChart3 },
       { name: 'System Health', href: '/admin/system-health', icon: Heart },
-      { name: 'Storage Monitor', href: '/admin/system-health', icon: HardDrive },
+      { name: 'Storage Monitor', href: '/admin/storage', icon: HardDrive },
       { name: 'Integrations', href: '/admin/settings', icon: Plug },
       { name: 'Platform Settings', href: '/admin/settings', icon: Settings },
     ],
@@ -87,8 +87,8 @@ const navItems: NavSection[] = [
     section: 'Support',
     items: [
       { name: 'Support Tickets', href: '/admin/tickets', icon: HelpCircle },
-      { name: 'Documentation', href: '#', icon: FileText },
-      { name: 'Help & Resources', href: '#', icon: HelpCircle },
+      { name: 'Documentation', href: '/admin/docs', icon: FileText },
+      { name: 'Help & Resources', href: '/admin/help', icon: HelpCircle },
     ],
   },
 ]
