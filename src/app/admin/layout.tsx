@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -50,9 +50,9 @@ const navItems: NavSection[] = [
     section: 'Command Center',
     items: [
       { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-      { name: 'Clients', href: '/admin/clients', icon: Users, badge: '156' },
+      { name: 'Clients', href: '/admin/clients', icon: Users },
       { name: 'Live Activity', href: '/admin/activity', icon: Activity, pulse: true },
-      { name: 'Notifications', href: '/admin/notifications', icon: Bell, badge: '3' },
+      { name: 'Notifications', href: '/admin/notifications', icon: Bell },
     ],
   },
   {
@@ -86,7 +86,7 @@ const navItems: NavSection[] = [
   {
     section: 'Support',
     items: [
-      { name: 'Support Tickets', href: '/admin/tickets', icon: HelpCircle, badge: '12' },
+      { name: 'Support Tickets', href: '/admin/tickets', icon: HelpCircle },
       { name: 'Documentation', href: '#', icon: FileText },
       { name: 'Help & Resources', href: '#', icon: HelpCircle },
     ],
@@ -102,6 +102,24 @@ export default function AdminLayout({
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
+  const [counts, setCounts] = useState({ clients: 0, notifications: 0, tickets: 0 })
+
+  useEffect(() => {
+    fetch('/api/admin/dashboard')
+      .then(r => r.ok ? r.json() : {})
+      .then((d: Record<string, unknown>) => {
+        setCounts({
+          clients: Number(d.totalClients ?? 0),
+          notifications: 0,
+          tickets: Number(d.openTickets ?? 0),
+        })
+      })
+    fetch('/api/admin/notifications')
+      .then(r => r.ok ? r.json() : [])
+      .then((n: Record<string, unknown>[]) => {
+        setCounts(prev => ({ ...prev, notifications: n.filter(x => !x.read).length }))
+      })
+  }, [])
 
   const handleLogout = async () => {
     await fetch('/api/auth/admin/logout', { method: 'POST' })
@@ -168,10 +186,14 @@ export default function AdminLayout({
                         <Icon className="w-[18px] h-[18px]" />
                         <span className="flex-1">{item.name}</span>
                         {item.pulse && <span className="online-dot" />}
-                        {item.badge && (
-                          <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-white/10 text-white">
-                            {item.badge}
-                          </span>
+                        {item.href === '/admin/clients' && item.name === 'Clients' && counts.clients > 0 && (
+                          <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-white/10 text-white">{counts.clients}</span>
+                        )}
+                        {item.href === '/admin/notifications' && counts.notifications > 0 && (
+                          <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-status-danger text-white">{counts.notifications}</span>
+                        )}
+                        {item.href === '/admin/tickets' && counts.tickets > 0 && (
+                          <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-white/10 text-white">{counts.tickets}</span>
                         )}
                       </Link>
                     )
