@@ -22,12 +22,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Invalid credentials. Please try again.' }, { status: 401 })
     }
 
-    const bcrypt = await import('bcryptjs').catch(() => null)
     let passwordValid = false
-
-    if (bcrypt) {
-      passwordValid = await bcrypt.compare(password, adminPasswordHash)
-    } else {
+    try {
+      const { compare } = await import('bcryptjs')
+      passwordValid = await compare(password, adminPasswordHash)
+    } catch {
       return NextResponse.json(
         { message: 'Server error. Contact your administrator.' },
         { status: 500 }
