@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, Mail, Globe, Phone, Edit, MoreHorizontal, FileText, Image, ShoppingCart, FormInput, Settings, Clock, CreditCard, User } from 'lucide-react'
+import { ArrowLeft, Mail, Globe, Phone, Edit, MoreHorizontal, FileText, Image, ShoppingCart, FormInput, Settings, Clock, CreditCard, User, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,6 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
 import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { mockClients, mockActivity } from '@/lib/mock-data'
 import { formatRelativeTime, formatBytes, formatDate } from '@/lib/utils'
 
 const tabs = [
@@ -24,15 +23,47 @@ const tabs = [
   { id: 'billing', label: 'Billing', icon: CreditCard },
 ]
 
+type Client = Record<string, unknown>
+type Activity = Record<string, unknown>
+
 export default function ClientDetailPage() {
   const params = useParams()
-  const client = mockClients.find(c => c.id === params.id) || mockClients[0]
+  const [client, setClient] = useState<Client | null>(null)
+  const [activities, setActivities] = useState<Activity[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const id = params.id
+    Promise.all([
+      fetch(`/api/admin/clients/${id}`).then(r => r.ok ? r.json() : null),
+      fetch('/api/admin/activity').then(r => r.ok ? r.json() : []),
+    ]).then(([c, a]) => {
+      setClient(c)
+      setActivities(a)
+    }).finally(() => setLoading(false))
+  }, [params.id])
+
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-brand-indigo" /></div>
+  }
+
+  if (!client) {
+    return (
+      <div className="text-center py-20">
+        <p className="text-text-muted">Client not found.</p>
+        <Link href="/admin/clients"><Button variant="outline" className="mt-4">Back to Clients</Button></Link>
+      </div>
+    )
+  }
+
+  const storagePercent = client.storage_limit ? Math.round((Number(client.storage) / Number(client.storage_limit)) * 100) : 0
+  const clientActivities = activities.filter(a => a.client_id === client.id)
 
   const stats = [
-    { label: 'Total Pages', value: client.pages },
-    { label: 'Storage Used', value: formatBytes(client.storage) },
-    { label: 'Forms', value: 12 },
-    { label: 'Orders', value: 45 },
+    { label: 'Total Pages', value: String(client.pages ?? 0) },
+    { label: 'Storage Used', value: formatBytes(Number(client.storage ?? 0)) },
+    { label: 'Forms', value: '—' },
+    { label: 'Orders', value: '—' },
   ]
 
   return (
@@ -53,16 +84,16 @@ export default function ClientDetailPage() {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
             <Avatar className="w-16 h-16 bg-brand-indigo text-white text-xl">
-              {client.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+              {String(client.name ?? '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
             </Avatar>
             <div>
-              <h2 className="text-h2">{client.name}</h2>
-              <p className="text-sm text-text-secondary">{client.company}</p>
+              <h2 className="text-h2">{String(client.name)}</h2>
+              <p className="text-sm text-text-secondary">{String(client.company ?? '')}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Badge className={client.status === 'active' ? 'badge-green' : client.status === 'pending' ? 'badge-amber' : 'badge-gray'}>
-              {client.status}
+              {String(client.status)}
             </Badge>
             <Button variant="outline" size="sm">
               <Edit className="w-4 h-4 mr-2" />
@@ -79,30 +110,32 @@ export default function ClientDetailPage() {
             <Mail className="w-5 h-5 text-text-muted" />
             <div>
               <p className="text-xs text-text-muted">Email</p>
-              <p className="text-sm font-medium text-text-primary">{client.email}</p>
+              <p className="text-sm font-medium text-text-primary">{String(client.email ?? '—')}</p>
             </div>
           </div>
           <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
             <Phone className="w-5 h-5 text-text-muted" />
             <div>
               <p className="text-xs text-text-muted">Phone</p>
-              <p className="text-sm font-medium text-text-primary">{client.phone}</p>
+              <p className="text-sm font-medium text-text-primary">{String(client.phone ?? '—')}</p>
             </div>
           </div>
           <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
             <Globe className="w-5 h-5 text-text-muted" />
             <div>
               <p className="text-xs text-text-muted">Website</p>
-              <a href={client.website} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-brand-indigo hover:underline">
-                {client.website.replace('https://', '')}
-              </a>
+              {client.website ? (
+                <a href={String(client.website)} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-brand-indigo hover:underline">
+                  {String(client.website).replace('https://', '')}
+                </a>
+              ) : <span className="text-sm text-text-muted">—</span>}
             </div>
           </div>
           <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
             <CreditCard className="w-5 h-5 text-text-muted" />
             <div>
               <p className="text-xs text-text-muted">Plan</p>
-              <Badge className="badge-indigo mt-1">{client.plan}</Badge>
+              <Badge className="badge-indigo mt-1">{String(client.plan ?? '—')}</Badge>
             </div>
           </div>
         </div>
@@ -120,13 +153,11 @@ export default function ClientDetailPage() {
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-text-secondary">Storage Usage</span>
             <span className="text-sm font-medium text-text-primary">
-              {formatBytes(client.storage)} / {formatBytes(client.storageLimit)}
+              {formatBytes(Number(client.storage ?? 0))} / {formatBytes(Number(client.storage_limit ?? 0))}
             </span>
           </div>
-          <Progress value={(client.storage / client.storageLimit) * 100} className="h-2" />
-          <p className="text-xs text-text-muted mt-2">
-            {Math.round((client.storage / client.storageLimit) * 100)}% of storage used
-          </p>
+          <Progress value={storagePercent} className="h-2" />
+          <p className="text-xs text-text-muted mt-2">{storagePercent}% of storage used</p>
         </div>
       </Card>
 
@@ -150,15 +181,15 @@ export default function ClientDetailPage() {
               <div className="space-y-4">
                 <div className="flex justify-between">
                   <span className="text-text-secondary">Category</span>
-                  <span className="text-text-primary font-medium">{client.category}</span>
+                  <span className="text-text-primary font-medium">{String(client.category ?? '—')}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">Created</span>
-                  <span className="text-text-primary font-medium">{formatDate(client.createdAt)}</span>
+                  <span className="text-text-primary font-medium">{formatDate(String(client.created_at ?? ''))}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">Last Active</span>
-                  <span className="text-text-primary font-medium">{formatRelativeTime(client.lastActive)}</span>
+                  <span className="text-text-primary font-medium">{formatRelativeTime(String(client.last_active ?? ''))}</span>
                 </div>
               </div>
             </Card>
@@ -166,16 +197,16 @@ export default function ClientDetailPage() {
             <Card className="p-5">
               <h3 className="text-h3 mb-4">Recent Activity</h3>
               <div className="space-y-3">
-                {mockActivity.filter(a => a.client === client.name).slice(0, 5).map((activity) => (
-                  <div key={activity.id} className="flex items-start gap-3 p-2">
+                {clientActivities.slice(0, 5).map((a) => (
+                  <div key={String(a.id)} className="flex items-start gap-3 p-2">
                     <div className="w-2 h-2 rounded-full bg-brand-indigo mt-2" />
                     <div className="flex-1">
-                      <p className="text-sm text-text-primary">{activity.description}</p>
-                      <p className="text-xs text-text-muted mt-1">{activity.user} • {formatRelativeTime(activity.timestamp)}</p>
+                      <p className="text-sm text-text-primary">{String(a.description)}</p>
+                      <p className="text-xs text-text-muted mt-1">{String(a.actor ?? '')} • {formatRelativeTime(String(a.created_at))}</p>
                     </div>
                   </div>
                 ))}
-                {mockActivity.filter(a => a.client === client.name).length === 0 && (
+                {clientActivities.length === 0 && (
                   <p className="text-sm text-text-muted">No recent activity</p>
                 )}
               </div>
@@ -186,7 +217,7 @@ export default function ClientDetailPage() {
         <TabsContent value="pages" className="mt-6">
           <Card className="p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-h3">Pages ({client.pages})</h3>
+              <h3 className="text-h3">Pages ({String(client.pages ?? 0)})</h3>
               <Button size="sm">Add Page</Button>
             </div>
             <p className="text-text-muted text-sm">No pages found. Create your first page to get started.</p>
@@ -231,18 +262,18 @@ export default function ClientDetailPage() {
           <Card className="p-5">
             <h3 className="text-h3 mb-4">Activity Log</h3>
             <div className="space-y-3">
-              {mockActivity.filter(a => a.client === client.name || !a.client).map((activity) => (
-                <div key={activity.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+              {clientActivities.map((a) => (
+                <div key={String(a.id)} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                   <div className="w-2 h-2 rounded-full bg-brand-indigo mt-2" />
                   <div className="flex-1">
-                    <p className="text-sm text-text-primary">{activity.description}</p>
+                    <p className="text-sm text-text-primary">{String(a.description)}</p>
                     <p className="text-xs text-text-muted mt-1">
-                      {activity.client && `${activity.client} • `}
-                      {activity.user} • {formatRelativeTime(activity.timestamp)}
+                      {String(a.actor ?? '')} • {formatRelativeTime(String(a.created_at))}
                     </p>
                   </div>
                 </div>
               ))}
+              {clientActivities.length === 0 && <p className="text-text-muted text-sm">No activity found.</p>}
             </div>
           </Card>
         </TabsContent>

@@ -1,23 +1,24 @@
 'use client'
 
-import { useState } from 'react'
-import { Search, Filter, Plus, Eye, Clock, CheckCircle, XCircle, AlertTriangle, MessageSquare } from 'lucide-react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { Search, Filter, Plus, Clock, CheckCircle, XCircle, AlertTriangle, MessageSquare, Loader2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { mockTickets } from '@/lib/mock-data'
 import { formatRelativeTime } from '@/lib/utils'
 
-const priorityColors = {
+type Ticket = Record<string, unknown>
+
+const priorityColors: Record<string, string> = {
   low: 'badge-gray',
   medium: 'badge-blue',
   high: 'badge-amber',
   critical: 'badge-red',
 }
 
-const statusIcons = {
+const statusIcons: Record<string, React.ElementType> = {
   open: AlertTriangle,
   in_progress: Clock,
   resolved: CheckCircle,
@@ -25,17 +26,43 @@ const statusIcons = {
 }
 
 export default function TicketsPage() {
+  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedTicket, setSelectedTicket] = useState<string | null>(null)
   const [filter, setFilter] = useState('all')
+  const [priorityFilter, setPriorityFilter] = useState('all')
 
-  const filteredTickets = filter === 'all'
-    ? mockTickets
-    : mockTickets.filter(t => t.status === filter)
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (filter !== 'all') params.set('status', filter)
+      if (priorityFilter !== 'all') params.set('priority', priorityFilter)
+      const res = await fetch(`/api/admin/tickets?${params}`)
+      if (res.ok) setTickets(await res.json())
+    } finally {
+      setLoading(false)
+    }
+  }, [filter, priorityFilter])
+
+  useEffect(() => { load() }, [load])
+
+  const updateTicket = async (id: string, data: Record<string, string>) => {
+    await fetch(`/api/admin/tickets/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    load()
+    setSelectedTicket(null)
+  }
+
+  const filteredTickets = tickets
 
   const stats = [
-    { label: 'Open', value: mockTickets.filter(t => t.status === 'open').length, color: 'text-status-danger' },
-    { label: 'In Progress', value: mockTickets.filter(t => t.status === 'in_progress').length, color: 'text-status-warning' },
-    { label: 'Resolved', value: mockTickets.filter(t => t.status === 'resolved').length, color: 'text-status-success' },
+    { label: 'Open', value: tickets.filter(t => t.status === 'open').length, color: 'text-status-danger' },
+    { label: 'In Progress', value: tickets.filter(t => t.status === 'in_progress').length, color: 'text-status-warning' },
+    { label: 'Resolved', value: tickets.filter(t => t.status === 'resolved').length, color: 'text-status-success' },
   ]
 
   return (
@@ -85,7 +112,7 @@ export default function TicketsPage() {
               </SelectContent>
             </Select>
 
-            <Select defaultValue="all">
+            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
               <SelectTrigger className="w-36">
                 <SelectValue placeholder="Priority" />
               </SelectTrigger>
@@ -119,44 +146,39 @@ export default function TicketsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredTickets.map((ticket) => {
-                    const StatusIcon = statusIcons[ticket.status]
+                  {loading ? (
+                    <tr><td colSpan={8} className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto text-text-muted" /></td></tr>
+                  ) : filteredTickets.length === 0 ? (
+                    <tr><td colSpan={8} className="text-center py-12 text-text-muted">No tickets found</td></tr>
+                  ) : filteredTickets.map((ticket) => {
+                    const t = ticket as Record<string, unknown>
+                    const StatusIcon = statusIcons[String(t.status)] ?? AlertTriangle
                     return (
                       <tr
-                        key={ticket.id}
-                        className={`cursor-pointer ${selectedTicket === ticket.id ? 'bg-brand-indigo-light/30' : ''}`}
-                        onClick={() => setSelectedTicket(ticket.id)}
+                        key={String(t.id)}
+                        className={`cursor-pointer ${selectedTicket === String(t.id) ? 'bg-brand-indigo-light/30' : ''}`}
+                        onClick={() => setSelectedTicket(String(t.id))}
                       >
-                        <td className="font-mono text-xs text-text-muted">{ticket.id}</td>
+                        <td className="font-mono text-xs text-text-muted">{String(t.id)}</td>
+                        <td><p className="font-medium text-text-primary max-w-xs truncate">{String(t.subject)}</p></td>
+                        <td className="text-text-secondary">{String(t.client_name ?? '—')}</td>
                         <td>
-                          <p className="font-medium text-text-primary max-w-xs truncate">{ticket.subject}</p>
-                        </td>
-                        <td className="text-text-secondary">{ticket.client}</td>
-                        <td>
-                          <Badge className={priorityColors[ticket.priority]}>
-                            {ticket.priority}
-                          </Badge>
+                          <Badge className={priorityColors[String(t.priority)] ?? 'badge-gray'}>{String(t.priority)}</Badge>
                         </td>
                         <td>
                           <div className="flex items-center gap-1">
                             <StatusIcon className={`w-4 h-4 ${
-                              ticket.status === 'open' ? 'text-status-danger' :
-                              ticket.status === 'in_progress' ? 'text-status-warning' :
-                              ticket.status === 'resolved' ? 'text-status-success' :
+                              t.status === 'open' ? 'text-status-danger' :
+                              t.status === 'in_progress' ? 'text-status-warning' :
+                              t.status === 'resolved' ? 'text-status-success' :
                               'text-text-muted'
                             }`} />
-                            <span className="text-text-secondary text-xs capitalize">
-                              {ticket.status.replace('_', ' ')}
-                            </span>
+                            <span className="text-text-secondary text-xs capitalize">{String(t.status).replace('_', ' ')}</span>
                           </div>
                         </td>
-                        <td className="text-text-secondary text-xs">{ticket.assignedTo || '-'}</td>
-                        <td className="text-text-secondary text-xs">{formatRelativeTime(ticket.updatedAt)}</td>
-                        <td>
-                          <Button variant="ghost" size="icon-sm">
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </td>
+                        <td className="text-text-secondary text-xs">{String(t.assigned_to ?? '—')}</td>
+                        <td className="text-text-secondary text-xs">{formatRelativeTime(String(t.updated_at))}</td>
+                        <td />
                       </tr>
                     )
                   })}
@@ -170,59 +192,54 @@ export default function TicketsPage() {
           {selectedTicket ? (
             <Card className="p-5 sticky top-20">
               {(() => {
-                const ticket = mockTickets.find(t => t.id === selectedTicket)
+                const ticket = tickets.find(t => String(t.id) === selectedTicket)
                 if (!ticket) return null
-                const StatusIcon = statusIcons[ticket.status]
+                const t = ticket as Record<string, unknown>
+                const StatusIcon = statusIcons[String(t.status)] ?? AlertTriangle
                 return (
                   <>
                     <div className="flex items-start justify-between mb-4">
                       <div>
-                        <h3 className="font-semibold text-text-primary">{ticket.subject}</h3>
-                        <p className="text-xs text-text-muted mt-1">{ticket.id}</p>
+                        <h3 className="font-semibold text-text-primary">{String(t.subject)}</h3>
+                        <p className="text-xs text-text-muted mt-1">{String(t.id)}</p>
                       </div>
                       <Button variant="ghost" size="icon-sm" onClick={() => setSelectedTicket(null)}>
                         <XCircle className="w-4 h-4" />
                       </Button>
                     </div>
-
                     <div className="flex items-center gap-2 mb-4">
-                      <Badge className={priorityColors[ticket.priority]}>{ticket.priority}</Badge>
-                      <Badge className={ticket.status === 'open' ? 'badge-red' : ticket.status === 'in_progress' ? 'badge-amber' : 'badge-green'}>
-                        {ticket.status.replace('_', ' ')}
+                      <Badge className={priorityColors[String(t.priority)] ?? 'badge-gray'}>{String(t.priority)}</Badge>
+                      <Badge className={t.status === 'open' ? 'badge-red' : t.status === 'in_progress' ? 'badge-amber' : 'badge-green'}>
+                        {String(t.status).replace('_', ' ')}
                       </Badge>
                     </div>
-
                     <div className="space-y-3 mb-6">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-text-muted">Client</span>
-                        <span className="text-text-primary">{ticket.client}</span>
+                        <span className="text-text-primary">{String(t.client_name ?? '—')}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-text-muted">Assigned to</span>
-                        <span className="text-text-primary">{ticket.assignedTo}</span>
+                        <span className="text-text-primary">{String(t.assigned_to ?? '—')}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-text-muted">Created</span>
-                        <span className="text-text-primary">{formatRelativeTime(ticket.createdAt)}</span>
+                        <span className="text-text-primary">{formatRelativeTime(String(t.created_at))}</span>
                       </div>
                     </div>
-
                     <div className="mb-6">
                       <p className="text-xs font-semibold text-text-secondary mb-2">Description</p>
-                      <p className="text-sm text-text-primary p-3 bg-gray-50 rounded-lg">
-                        {ticket.description}
-                      </p>
+                      <p className="text-sm text-text-primary p-3 bg-gray-50 rounded-lg">{String(t.description ?? '')}</p>
                     </div>
-
                     <div className="space-y-2">
-                      <Button className="w-full">
+                      <Button className="w-full" onClick={() => updateTicket(String(t.id), { status: 'in_progress' })}>
                         <MessageSquare className="w-4 h-4 mr-2" />
-                        Reply
+                        Mark In Progress
                       </Button>
                       <div className="flex gap-2">
-                        <Button variant="outline" className="flex-1">Escalate</Button>
-                        <Button variant="outline" className="flex-1">
-                          {ticket.status === 'resolved' ? 'Reopen' : 'Resolve'}
+                        <Button variant="outline" className="flex-1" onClick={() => updateTicket(String(t.id), { priority: 'critical' })}>Escalate</Button>
+                        <Button variant="outline" className="flex-1" onClick={() => updateTicket(String(t.id), { status: t.status === 'resolved' ? 'open' : 'resolved' })}>
+                          {t.status === 'resolved' ? 'Reopen' : 'Resolve'}
                         </Button>
                       </div>
                     </div>

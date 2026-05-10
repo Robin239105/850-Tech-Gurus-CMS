@@ -1,12 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Calendar, Download, Eye, FileText, ShoppingCart, Users, TrendingUp, TrendingDown } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { mockClients } from '@/lib/mock-data'
 import { formatCurrency } from '@/lib/utils'
 
 const stats = [
@@ -33,6 +32,13 @@ const reports = [
 
 export default function AnalyticsPage() {
   const [dateRange, setDateRange] = useState('30d')
+  const [topClients, setTopClients] = useState<Record<string, unknown>[]>([])
+
+  useEffect(() => {
+    fetch('/api/admin/clients?limit=5')
+      .then(r => r.ok ? r.json() : [])
+      .then(setTopClients)
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -124,14 +130,20 @@ export default function AnalyticsPage() {
                 </tr>
               </thead>
               <tbody>
-                {mockClients.slice(0, 5).map((client) => (
-                  <tr key={client.id}>
-                    <td className="font-medium text-text-primary">{client.name}</td>
-                    <td className="text-text-secondary">{Math.floor(Math.random() * 10000) + 1000}</td>
-                    <td className="text-text-secondary">{Math.floor(Math.random() * 500) + 50}</td>
-                    <td className="text-text-secondary">{formatCurrency(client.plan === 'Enterprise' ? 299 : client.plan === 'Business' ? 149 : client.plan === 'Pro' ? 79 : 29)}</td>
-                  </tr>
-                ))}
+                {topClients.length === 0 ? (
+                  <tr><td colSpan={4} className="text-center py-8 text-text-muted">No client data yet</td></tr>
+                ) : topClients.map((client) => {
+                  const c = client as Record<string, unknown>
+                  const planPrice = c.plan === 'Enterprise' ? 299 : c.plan === 'Business' ? 149 : c.plan === 'Pro' ? 79 : 29
+                  return (
+                    <tr key={String(c.id)}>
+                      <td className="font-medium text-text-primary">{String(c.name)}</td>
+                      <td className="text-text-secondary">—</td>
+                      <td className="text-text-secondary">—</td>
+                      <td className="text-text-secondary">{formatCurrency(planPrice)}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

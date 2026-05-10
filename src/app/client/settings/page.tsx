@@ -1,16 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import {
-  Settings,
-  Palette,
-  Search,
-  Share2,
-  Code,
-  AlertTriangle,
-  Save,
-  Eye,
-} from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { Settings, Palette, Search, Share2, Code, AlertTriangle, Save, Eye, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -40,6 +31,40 @@ const socialPlatforms = [
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general')
   const [resetConfirm, setResetConfirm] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
+
+  useEffect(() => {
+    fetch('/api/client/settings')
+      .then(r => r.ok ? r.json() : {})
+      .then((s: Record<string, string>) => {
+        if (!formRef.current) return
+        Object.entries(s).forEach(([key, value]) => {
+          const el = formRef.current?.elements.namedItem(key) as HTMLInputElement | null
+          if (el) el.value = value
+        })
+      })
+  }, [])
+
+  const handleSave = async () => {
+    setSaving(true)
+    const form = formRef.current
+    if (!form) { setSaving(false); return }
+    const data: Record<string, string> = {}
+    Array.from(form.elements).forEach((el) => {
+      const input = el as HTMLInputElement
+      if (input.id && input.value !== undefined) data[input.id] = input.value
+    })
+    await fetch('/api/client/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
+  }
 
   return (
     <div className="space-y-6">
@@ -48,6 +73,7 @@ export default function SettingsPage() {
         <h2 className="text-xl font-semibold">Site Settings</h2>
       </div>
 
+      <form ref={formRef} onSubmit={(e) => e.preventDefault()}>
       <div className="flex gap-6">
         <div className="w-48 shrink-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} orientation="vertical" className="flex gap-2">
@@ -80,29 +106,29 @@ export default function SettingsPage() {
               <CardContent className="space-y-4">
                 <div>
                   <label className="text-sm font-medium">Site title *</label>
-                  <Input defaultValue="Acme Corporation" className="mt-1.5" />
+                  <Input id="site_title" className="mt-1.5" placeholder="Your site title" />
                 </div>
                 <div>
                   <label className="text-sm font-medium">Tagline / Slogan</label>
-                  <Input defaultValue="Building the future, today" className="mt-1.5" />
+                  <Input id="site_tagline" className="mt-1.5" placeholder="Your tagline" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium">Admin email</label>
-                    <Input type="email" defaultValue="admin@acmecorp.com" className="mt-1.5" />
+                    <Input id="admin_email" type="email" className="mt-1.5" placeholder="admin@company.com" />
                   </div>
                   <div>
                     <label className="text-sm font-medium">Phone</label>
-                    <Input type="tel" defaultValue="+1 (555) 123-4567" className="mt-1.5" />
+                    <Input id="site_phone" type="tel" className="mt-1.5" placeholder="+1 (555) 000-0000" />
                   </div>
                 </div>
                 <div>
                   <label className="text-sm font-medium">Business address</label>
-                  <Textarea defaultValue="123 Business Ave, Suite 100&#10;New York, NY 10001" className="mt-1.5 h-20" />
+                  <Textarea id="site_address" className="mt-1.5 h-20" placeholder="123 Business Ave..." />
                 </div>
                 <div>
                   <label className="text-sm font-medium">Business hours</label>
-                  <Input defaultValue="Mon-Fri: 9:00 AM - 6:00 PM" className="mt-1.5" />
+                  <Input id="site_hours" className="mt-1.5" placeholder="Mon-Fri: 9:00 AM - 6:00 PM" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -133,9 +159,9 @@ export default function SettingsPage() {
                     <option>German</option>
                   </select>
                 </div>
-                <Button className="mt-4">
-                  <Save className="w-4 h-4 mr-2" />
-                  Save changes
+                <Button className="mt-4" onClick={handleSave} disabled={saving}>
+                  {saved ? <CheckCircle className="w-4 h-4 mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                  {saving ? 'Saving…' : saved ? 'Saved!' : 'Save changes'}
                 </Button>
               </CardContent>
             </Card>
@@ -203,9 +229,9 @@ export default function SettingsPage() {
                       </select>
                     </div>
                   </div>
-                  <Button>
-                    <Save className="w-4 h-4 mr-2" />
-                    Save branding
+                  <Button onClick={handleSave} disabled={saving}>
+                    {saved ? <CheckCircle className="w-4 h-4 mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                    {saving ? 'Saving…' : saved ? 'Saved!' : 'Save branding'}
                   </Button>
                 </CardContent>
               </Card>
@@ -284,9 +310,9 @@ export default function SettingsPage() {
                     className="mt-1.5 font-mono text-sm h-32"
                   />
                 </div>
-                <Button>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save SEO settings
+                <Button onClick={handleSave} disabled={saving}>
+                  {saved ? <CheckCircle className="w-4 h-4 mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                  {saving ? 'Saving…' : saved ? 'Saved!' : 'Save SEO settings'}
                 </Button>
               </CardContent>
             </Card>
@@ -312,9 +338,9 @@ export default function SettingsPage() {
                   </div>
                   <Switch defaultChecked />
                 </div>
-                <Button>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save social links
+                <Button onClick={handleSave} disabled={saving}>
+                  {saved ? <CheckCircle className="w-4 h-4 mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                  {saving ? 'Saving…' : saved ? 'Saved!' : 'Save social links'}
                 </Button>
               </CardContent>
             </Card>
@@ -348,9 +374,9 @@ export default function SettingsPage() {
                       className="mt-1.5 font-mono text-sm h-32"
                     />
                   </div>
-                  <Button>
-                    <Save className="w-4 h-4 mr-2" />
-                    Save advanced settings
+                  <Button onClick={handleSave} disabled={saving}>
+                    {saved ? <CheckCircle className="w-4 h-4 mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                    {saving ? 'Saving…' : saved ? 'Saved!' : 'Save advanced settings'}
                   </Button>
                 </CardContent>
               </Card>
@@ -411,6 +437,7 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+      </form>
     </div>
   )
 }

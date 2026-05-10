@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Save, User, Mail, CreditCard, Shield, Plug, Palette, Database } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Save, User, Mail, CreditCard, Shield, Plug, Palette, Database, CheckCircle } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,6 +21,43 @@ const tabs = [
 ]
 
 export default function SettingsPage() {
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
+
+  useEffect(() => {
+    fetch('/api/admin/settings')
+      .then(r => r.ok ? r.json() : {})
+      .then((s: Record<string, string>) => {
+        if (!formRef.current) return
+        Object.entries(s).forEach(([key, value]) => {
+          const el = formRef.current?.elements.namedItem(key) as HTMLInputElement | null
+          if (el) el.value = value
+        })
+      })
+  }, [])
+
+  const handleSave = async () => {
+    setSaving(true)
+    const form = formRef.current
+    if (!form) return
+    const data: Record<string, string> = {}
+    Array.from(form.elements).forEach((el) => {
+      const input = el as HTMLInputElement
+      if (input.id && input.value !== undefined && input.type !== 'submit') {
+        data[input.id] = input.value
+      }
+    })
+    await fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -28,12 +65,13 @@ export default function SettingsPage() {
           <h1 className="text-h1">Platform Settings</h1>
           <p className="text-sm text-text-secondary mt-1">Configure platform-wide settings</p>
         </div>
-        <Button>
-          <Save className="w-4 h-4 mr-2" />
-          Save Changes
+        <Button onClick={handleSave} disabled={saving}>
+          {saved ? <CheckCircle className="w-4 h-4 mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+          {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Changes'}
         </Button>
       </div>
 
+      <form ref={formRef} onSubmit={(e) => e.preventDefault()}>
       <Tabs defaultValue="general">
         <TabsList className="w-full justify-start overflow-x-auto">
           {tabs.map((tab) => {
@@ -281,6 +319,7 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      </form>
     </div>
   )
 }

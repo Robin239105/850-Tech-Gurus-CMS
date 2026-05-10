@@ -6,8 +6,16 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { mockSystemServices } from '@/lib/mock-data'
 import { formatDate } from '@/lib/utils'
+
+const systemServices = [
+  { name: 'API Gateway', status: 'operational' as const, uptime: 99.9, responseTime: 42, sparkline: [40,38,45,42,44,41,43,40,42,38,41,42] },
+  { name: 'Database', status: 'operational' as const, uptime: 99.95, responseTime: 18, sparkline: [15,18,16,19,17,18,16,17,18,15,17,18] },
+  { name: 'File Storage', status: 'operational' as const, uptime: 99.8, responseTime: 65, sparkline: [60,62,68,65,70,64,63,66,65,62,64,65] },
+  { name: 'Email Service', status: 'operational' as const, uptime: 99.7, responseTime: 120, sparkline: [110,118,125,120,130,115,120,122,118,120,115,120] },
+  { name: 'Auth Service', status: 'operational' as const, uptime: 100, responseTime: 28, sparkline: [25,27,30,28,26,29,28,27,26,28,27,28] },
+  { name: 'CDN', status: 'operational' as const, uptime: 99.99, responseTime: 12, sparkline: [10,12,11,13,12,11,12,10,12,11,11,12] },
+]
 
 const statusIcons = {
   operational: CheckCircle,
@@ -73,7 +81,7 @@ export default function SystemHealthPage() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {mockSystemServices.map((service) => {
+        {systemServices.map((service) => {
           const StatusIcon = statusIcons[service.status]
           return (
             <Card key={service.name} className="p-5">

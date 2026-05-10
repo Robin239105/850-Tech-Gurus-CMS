@@ -11,7 +11,13 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
-import { plans } from '@/lib/mock-data'
+
+const plans = [
+  { name: 'Starter', price: 29, recommended: false, features: ['5 Pages', '5 GB Storage', 'Basic Support', 'SSL Certificate'] },
+  { name: 'Pro', price: 79, recommended: true, features: ['25 Pages', '25 GB Storage', 'Priority Support', 'Custom Domain', 'Analytics'] },
+  { name: 'Business', price: 149, recommended: false, features: ['100 Pages', '100 GB Storage', 'Dedicated Support', 'White Label', 'API Access'] },
+  { name: 'Enterprise', price: 299, recommended: false, features: ['Unlimited Pages', '500 GB Storage', '24/7 Support', 'White Label', 'API Access', 'SLA'] },
+]
 
 const steps = [
   { id: 1, name: 'Client Information', icon: Building },
@@ -67,10 +73,29 @@ export default function NewClientPage() {
 
   const handleSubmit = async () => {
     setIsSubmitting(true)
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    setIsSubmitting(false)
-    setIsComplete(true)
-    setTimeout(() => router.push('/admin/clients'), 2000)
+    try {
+      const res = await fetch('/api/admin/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          company: formData.company,
+          email: formData.email,
+          phone: formData.phone,
+          website: formData.website,
+          category: formData.category,
+          notes: formData.notes,
+          plan: selectedPlan,
+          status: 'pending',
+        }),
+      })
+      if (res.ok) {
+        setIsComplete(true)
+        setTimeout(() => router.push('/admin/clients'), 2000)
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const selectedPlanData = plans.find(p => p.name === selectedPlan)
