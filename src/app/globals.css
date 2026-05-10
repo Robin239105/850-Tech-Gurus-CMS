@@ -1,0 +1,208 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    border-color: theme('colors.card.border');
+  }
+
+  body {
+    @apply bg-page-bg text-text-primary font-sans antialiased;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  h1 {
+    @apply text-h1 font-bold;
+  }
+
+  h2 {
+    @apply text-h2 font-semibold;
+  }
+
+  h3 {
+    @apply text-h3 font-semibold;
+  }
+
+  h4 {
+    @apply text-h4 font-semibold;
+  }
+
+  ::selection {
+    @apply bg-brand-indigo/20 text-brand-indigo-dark;
+  }
+}
+
+@layer components {
+  .sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-sidebar-muted transition-all duration-150 cursor-pointer;
+  }
+
+  .sidebar-item:hover {
+    @apply bg-white/10 text-slate-200;
+  }
+
+  .sidebar-item.active {
+    @apply border-l-[3px] border-brand-indigo bg-white/[0.06] text-white font-medium;
+  }
+
+  .sidebar-item.active svg {
+    @apply text-brand-indigo;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md font-medium text-sm transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-brand-indigo text-white hover:bg-brand-indigo-dark;
+  }
+
+  .btn-outline {
+    @apply btn border border-card-border bg-white text-text-primary hover:bg-gray-50;
+  }
+
+  .btn-danger {
+    @apply btn bg-status-danger text-white hover:bg-red-600;
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent text-text-secondary hover:bg-gray-100;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .btn-lg {
+    @apply px-6 py-3 text-base;
+  }
+
+  .card {
+    @apply bg-card rounded-lg border border-card-border shadow-card;
+  }
+
+  .input {
+    @apply w-full px-3 py-2.5 rounded-md border border-card-border bg-white text-sm placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-indigo/20 focus:border-brand-indigo transition-all duration-150 shadow-input;
+  }
+
+  .input-error {
+    @apply border-status-danger focus:ring-status-danger/20 focus:border-status-danger;
+  }
+
+  .label {
+    @apply block text-xs font-medium text-text-secondary mb-1.5;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border;
+  }
+
+  .badge-green {
+    @apply bg-green-50 text-green-700 border-green-200;
+  }
+
+  .badge-gray {
+    @apply bg-gray-100 text-gray-600 border-gray-200;
+  }
+
+  .badge-amber {
+    @apply bg-amber-50 text-amber-700 border-amber-200;
+  }
+
+  .badge-red {
+    @apply bg-red-50 text-red-700 border-red-200;
+  }
+
+  .badge-blue {
+    @apply bg-blue-50 text-blue-700 border-blue-200;
+  }
+
+  .badge-indigo {
+    @apply bg-brand-indigo-light text-brand-indigo border-indigo-200;
+  }
+
+  .table {
+    @apply w-full text-sm;
+  }
+
+  .table thead {
+    @apply border-b border-card-border;
+  }
+
+  .table th {
+    @apply px-4 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider;
+  }
+
+  .table tbody tr {
+    @apply border-b border-card-border hover:bg-brand-indigo-light/30 transition-colors duration-150;
+  }
+
+  .table td {
+    @apply px-4 py-3;
+  }
+
+  .table tfoot {
+    @apply border-t border-card-border;
+  }
+
+  .table tfoot td {
+    @apply px-4 py-3 text-xs text-text-secondary;
+  }
+
+  .skeleton {
+    @apply bg-gray-200 rounded animate-shimmer bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%];
+  }
+
+  .nav-section-label {
+    @apply px-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-4 mb-1;
+  }
+
+  .nav-section-label:first-child {
+    @apply mt-0;
+  }
+
+  .online-dot {
+    @apply w-2 h-2 rounded-full bg-brand-cyan animate-pulse inline-block;
+  }
+
+  .shimmer-row {
+    @apply flex items-center gap-4 p-4 border-b border-card-border;
+  }
+
+  .shimmer-line {
+    @apply skeleton h-4 rounded;
+  }
+
+  .shimmer-avatar {
+    @apply skeleton w-10 h-10 rounded-full flex-shrink-0;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.gray.200') transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: theme('colors.gray.200');
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: theme('colors.gray.300');
+  }
+}
