@@ -192,20 +192,22 @@ export default function SystemHealthPage() {
               Run Migration
             </Button>
           </div>
-          <div className="p-4 border border-card-border rounded-lg bg-gray-50">
-            <h3 className="font-semibold text-text-primary mb-1">Seed Real Data</h3>
-            <p className="text-xs text-text-muted mb-3">Populates the database with initial sample data.</p>
+          <div className="p-4 border border-status-danger/20 rounded-lg bg-red-50/30">
+            <h3 className="font-semibold text-status-danger mb-1">Clear All Data</h3>
+            <p className="text-xs text-text-muted mb-3">Permanently deletes all clients, tickets, and activity.</p>
             <Button 
               size="sm" 
               variant="outline" 
-              className="w-full"
+              className="w-full text-status-danger border-status-danger hover:bg-status-danger hover:text-white"
               onClick={async () => {
-                const res = await fetch('/api/admin/seed', { method: 'POST' })
-                const data = await res.json()
-                alert(data.message)
+                if (window.confirm('Are you absolutely sure? This will delete ALL real data and cannot be undone.')) {
+                  const res = await fetch('/api/admin/clear-db', { method: 'POST' })
+                  const data = await res.json()
+                  alert(data.message)
+                }
               }}
             >
-              Seed Database
+              Reset Database
             </Button>
           </div>
         </div>
