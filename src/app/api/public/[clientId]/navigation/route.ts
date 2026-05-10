@@ -5,9 +5,9 @@ const sql = neon(process.env.DATABASE_URL!)
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { clientId: string } }
+  { params }: { params: Promise<{ clientId: string }> }
 ) {
-  const { clientId } = params
+  const { clientId } = await params
   const rows = await sql`
     SELECT menu_name, items
     FROM navigation_menus

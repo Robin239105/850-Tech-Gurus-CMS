@@ -5,9 +5,9 @@ const sql = neon(process.env.DATABASE_URL!)
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { clientId: string; slug: string } }
+  { params }: { params: Promise<{ clientId: string; slug: string }> }
 ) {
-  const { clientId, slug } = params
+  const { clientId, slug } = await params
   const rows = await sql`
     SELECT id, title, slug, excerpt, content, featured_image, author, status, created_at, updated_at
     FROM blog_posts
