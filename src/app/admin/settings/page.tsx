@@ -209,16 +209,20 @@ export default function SettingsPage() {
                 </Select>
               </div>
               <div>
+                <Label htmlFor="stripePublicKey">Stripe Public Key</Label>
+                <Input id="stripePublicKey" placeholder="pk_live_..." className="mt-1.5" />
+              </div>
+              <div>
+                <Label htmlFor="stripeSecretKey">Stripe Secret Key</Label>
+                <Input id="stripeSecretKey" type="password" placeholder="sk_live_..." className="mt-1.5" />
+              </div>
+              <div>
+                <Label htmlFor="stripeWebhookSecret">Stripe Webhook Secret</Label>
+                <Input id="stripeWebhookSecret" type="password" placeholder="whsec_..." className="mt-1.5" />
+              </div>
+              <div>
                 <Label htmlFor="invoicePrefix">Invoice Prefix</Label>
                 <Input id="invoicePrefix" defaultValue="INV-" className="mt-1.5" />
-              </div>
-              <div>
-                <Label htmlFor="taxRate">Default Tax Rate (%)</Label>
-                <Input id="taxRate" type="number" defaultValue="0" className="mt-1.5" />
-              </div>
-              <div>
-                <Label htmlFor="paymentTerms">Payment Terms (days)</Label>
-                <Input id="paymentTerms" type="number" defaultValue="30" className="mt-1.5" />
               </div>
             </div>
           </Card>

@@ -7,24 +7,21 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
-const PLANS = [
-  { name: 'Starter', price: 29, color: 'badge-gray' },
-  { name: 'Pro', price: 79, color: 'badge-indigo' },
-  { name: 'Business', price: 149, color: 'badge-cyan' },
-  { name: 'Enterprise', price: 299, color: 'badge-green' },
-]
-
 export default function BillingPage() {
   const [clients, setClients] = useState<Record<string, unknown>[]>([])
+  const [plans, setPlans] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
   const [msg, setMsg] = useState('')
 
   useEffect(() => {
-    fetch('/api/admin/clients')
-      .then(r => r.ok ? r.json() : [])
-      .then(setClients)
-      .finally(() => setLoading(false))
+    Promise.all([
+      fetch('/api/admin/clients').then(r => r.ok ? r.json() : []),
+      fetch('/api/admin/plans').then(r => r.ok ? r.json() : [])
+    ]).then(([clientsData, plansData]) => {
+      setClients(clientsData)
+      setPlans(plansData)
+    }).finally(() => setLoading(false))
   }, [])
 
   const changePlan = async (clientId: string, plan: string) => {
@@ -44,13 +41,14 @@ export default function BillingPage() {
   }
 
   const totalMRR = clients.reduce((sum, c) => {
-    const p = PLANS.find(p => p.name === c.plan)
-    return sum + (p?.price ?? 0)
+    const p = plans.find(p => p.name === c.plan)
+    return sum + (p ? Number(p.price) : 0)
   }, 0)
 
-  const planCounts = PLANS.map(p => ({
+  const planCounts = plans.map(p => ({
     ...p,
     count: clients.filter(c => c.plan === p.name).length,
+    color: p.name === 'Starter' ? 'badge-gray' : p.name === 'Pro' ? 'badge-indigo' : p.name === 'Business' ? 'badge-cyan' : 'badge-green'
   }))
 
   return (
@@ -134,7 +132,7 @@ export default function BillingPage() {
                           disabled={saving === String(c.id)}
                           onChange={e => changePlan(String(c.id), e.target.value)}
                         >
-                          {PLANS.map(p => <option key={p.name} value={p.name}>{p.name} — ${p.price}/mo</option>)}
+                          {plans.map(p => <option key={p.name} value={p.name}>{p.name} — ${p.price}/mo</option>)}
                         </select>
                       </td>
                     </tr>

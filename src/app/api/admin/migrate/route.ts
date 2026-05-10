@@ -265,6 +265,29 @@ export async function POST(req: NextRequest) {
     `
 
     await sql`
+      CREATE TABLE IF NOT EXISTS billing_plans (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        name TEXT UNIQUE NOT NULL,
+        price NUMERIC(10,2) NOT NULL,
+        features JSONB DEFAULT '[]',
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `
+
+    // Seed default plans if table is empty
+    const planCount = await sql`SELECT count(*) FROM billing_plans`
+    if (Number(planCount[0].count) === 0) {
+      await sql`
+        INSERT INTO billing_plans (name, price, features) VALUES
+        ('Starter', 29.00, '["Up to 5 pages", "Basic Support", "1GB Storage"]'),
+        ('Pro', 79.00, '["Unlimited pages", "Priority Support", "10GB Storage", "Analytics"]'),
+        ('Business', 149.00, '["Custom Domain", "24/7 Support", "100GB Storage", "White-labeling"]'),
+        ('Enterprise', 299.00, '["Dedicated Server", "SLA Guarantee", "Unlimited Storage", "API Access"]')
+      `
+    }
+
+    await sql`
       CREATE TABLE IF NOT EXISTS navigation_menus (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
         client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
