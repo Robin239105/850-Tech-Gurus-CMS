@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, Mail, Globe, Phone, Edit, MoreHorizontal, FileText, Image, ShoppingCart, FormInput, Settings, Clock, CreditCard, User, Loader2 } from 'lucide-react'
+import { ArrowLeft, Mail, Globe, Phone, Edit, MoreHorizontal, FileText, Image, ShoppingCart, FormInput, Settings, Clock, CreditCard, User, Loader2, CheckCircle, Ban, Key, Save } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -26,14 +28,22 @@ const tabs = [
 type Client = Record<string, unknown>
 type Activity = Record<string, unknown>
 
+const PLANS = ['Starter', 'Pro', 'Business', 'Enterprise']
+
 export default function ClientDetailPage() {
   const params = useParams()
   const [client, setClient] = useState<Client | null>(null)
   const [activities, setActivities] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [actionMsg, setActionMsg] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [pwError, setPwError] = useState('')
+
+  const id = String(params.id)
 
   useEffect(() => {
-    const id = params.id
     Promise.all([
       fetch(`/api/admin/clients/${id}`).then(r => r.ok ? r.json() : null),
       fetch('/api/admin/activity').then(r => r.ok ? r.json() : []),
@@ -41,7 +51,62 @@ export default function ClientDetailPage() {
       setClient(c)
       setActivities(a)
     }).finally(() => setLoading(false))
-  }, [params.id])
+  }, [id])
+
+  const setStatus = async (status: string) => {
+    setSaving(true)
+    const res = await fetch(`/api/admin/clients/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+    if (res.ok) {
+      const updated = await res.json()
+      setClient(updated)
+      setActionMsg(`Client ${status} successfully`)
+    }
+    setSaving(false)
+    setTimeout(() => setActionMsg(''), 3000)
+  }
+
+  const setPlan = async (plan: string) => {
+    setSaving(true)
+    const res = await fetch(`/api/admin/clients/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan }),
+    })
+    if (res.ok) {
+      const updated = await res.json()
+      setClient(updated)
+      setActionMsg('Plan updated')
+    }
+    setSaving(false)
+    setTimeout(() => setActionMsg(''), 3000)
+  }
+
+  const handleSetPassword = async (activate: boolean) => {
+    setPwError('')
+    if (newPassword.length < 8) { setPwError('Password must be at least 8 characters.'); return }
+    if (newPassword !== confirmPassword) { setPwError('Passwords do not match.'); return }
+    setSaving(true)
+    const res = await fetch(`/api/admin/clients/${id}/set-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: newPassword, activate }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      setClient(prev => prev ? { ...prev, ...data.client } : prev)
+      setNewPassword('')
+      setConfirmPassword('')
+      setActionMsg(activate ? 'Password set and client activated!' : 'Password updated')
+    } else {
+      setPwError(data.message)
+    }
+    setSaving(false)
+    setTimeout(() => setActionMsg(''), 4000)
+  }
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-brand-indigo" /></div>
@@ -91,17 +156,21 @@ export default function ClientDetailPage() {
               <p className="text-sm text-text-secondary">{String(client.company ?? '')}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge className={client.status === 'active' ? 'badge-green' : client.status === 'pending' ? 'badge-amber' : 'badge-gray'}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge className={client.status === 'active' ? 'badge-green' : client.status === 'pending' ? 'badge-amber' : client.status === 'suspended' ? 'badge-red' : 'badge-gray'}>
               {String(client.status)}
             </Badge>
-            <Button variant="outline" size="sm">
-              <Edit className="w-4 h-4 mr-2" />
-              Edit
-            </Button>
-            <Button variant="ghost" size="icon-sm">
-              <MoreHorizontal className="w-5 h-5" />
-            </Button>
+            {client.status !== 'active' && (
+              <Button size="sm" onClick={() => setStatus('active')} disabled={saving}>
+                <CheckCircle className="w-4 h-4 mr-2" />Activate
+              </Button>
+            )}
+            {client.status === 'active' && (
+              <Button size="sm" variant="outline" onClick={() => setStatus('suspended')} disabled={saving}>
+                <Ban className="w-4 h-4 mr-2" />Suspend
+              </Button>
+            )}
+            {actionMsg && <span className="text-xs text-status-success font-medium">{actionMsg}</span>}
           </div>
         </div>
 
@@ -252,10 +321,48 @@ export default function ClientDetailPage() {
         </TabsContent>
 
         <TabsContent value="settings" className="mt-6">
-          <Card className="p-5">
-            <h3 className="text-h3 mb-4">Client Settings</h3>
-            <p className="text-text-muted text-sm">Configure client-specific settings here.</p>
-          </Card>
+          <div className="space-y-4">
+            <Card className="p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Key className="w-5 h-5 text-brand-indigo" />
+                <h3 className="text-h3">Set Client Password</h3>
+              </div>
+              <p className="text-sm text-text-secondary mb-4">
+                {client.password_hash ? 'Update the client login password.' : 'This client has no password yet — set one to let them log in.'}
+              </p>
+              <div className="space-y-3 max-w-sm">
+                <div>
+                  <Label>New Password</Label>
+                  <Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Min. 8 characters" className="mt-1" />
+                </div>
+                <div>
+                  <Label>Confirm Password</Label>
+                  <Input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Repeat password" className="mt-1" />
+                </div>
+                {pwError && <p className="text-sm text-status-danger">{pwError}</p>}
+                <div className="flex gap-2 pt-1">
+                  <Button onClick={() => handleSetPassword(false)} disabled={saving || !newPassword}>
+                    <Save className="w-4 h-4 mr-2" />Save Password
+                  </Button>
+                  {client.status !== 'active' && (
+                    <Button variant="outline" onClick={() => handleSetPassword(true)} disabled={saving || !newPassword}>
+                      <CheckCircle className="w-4 h-4 mr-2" />Set Password &amp; Activate
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-5">
+              <h3 className="text-h3 mb-4">Account Status</h3>
+              <div className="flex items-center gap-3">
+                <Badge className={client.status === 'active' ? 'badge-green' : client.status === 'pending' ? 'badge-amber' : 'badge-red'}>{String(client.status)}</Badge>
+                {client.status !== 'active' && <Button size="sm" onClick={() => setStatus('active')} disabled={saving}><CheckCircle className="w-4 h-4 mr-2" />Activate</Button>}
+                {client.status === 'active' && <Button size="sm" variant="outline" onClick={() => setStatus('suspended')} disabled={saving}><Ban className="w-4 h-4 mr-2" />Suspend</Button>}
+                {client.status === 'suspended' && <Button size="sm" variant="outline" onClick={() => setStatus('pending')} disabled={saving}>Reset to Pending</Button>}
+              </div>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="activity" className="mt-6">
@@ -279,10 +386,36 @@ export default function ClientDetailPage() {
         </TabsContent>
 
         <TabsContent value="billing" className="mt-6">
-          <Card className="p-5">
-            <h3 className="text-h3 mb-4">Billing & Invoices</h3>
-            <p className="text-text-muted text-sm">No invoices found.</p>
-          </Card>
+          <div className="space-y-4">
+            <Card className="p-5">
+              <h3 className="text-h3 mb-4">Current Plan</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {PLANS.map(plan => (
+                  <button
+                    key={plan}
+                    onClick={() => setPlan(plan)}
+                    disabled={saving}
+                    className={`p-4 rounded-lg border-2 text-left transition-all ${
+                      client.plan === plan
+                        ? 'border-brand-indigo bg-brand-indigo/5'
+                        : 'border-card-border hover:border-brand-indigo/50'
+                    }`}
+                  >
+                    <p className="font-semibold text-text-primary">{plan}</p>
+                    <p className="text-xs text-text-muted mt-1">
+                      {plan === 'Starter' ? '$29/mo' : plan === 'Pro' ? '$79/mo' : plan === 'Business' ? '$149/mo' : '$299/mo'}
+                    </p>
+                    {client.plan === plan && <Badge className="badge-indigo mt-2 text-[10px]">Current</Badge>}
+                  </button>
+                ))}
+              </div>
+              {actionMsg && <p className="text-sm text-status-success mt-3">{actionMsg}</p>}
+            </Card>
+            <Card className="p-5">
+              <h3 className="text-h3 mb-2">Invoices</h3>
+              <p className="text-sm text-text-muted">Invoice management coming soon.</p>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

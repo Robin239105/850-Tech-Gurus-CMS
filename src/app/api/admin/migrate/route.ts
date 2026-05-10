@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
         pages INTEGER DEFAULT 0,
         notes TEXT,
         avatar TEXT,
+        password_hash TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW(),
         last_active TIMESTAMPTZ DEFAULT NOW()
       )
@@ -111,6 +112,9 @@ export async function POST(req: NextRequest) {
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `
+
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS password_hash TEXT`
+    await sql`ALTER TABLE activity_log ADD COLUMN IF NOT EXISTS client_id TEXT`
 
     return NextResponse.json({ success: true, message: 'Database schema created successfully' })
   } catch (error) {
