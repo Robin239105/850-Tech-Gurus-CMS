@@ -217,8 +217,66 @@ export async function POST(req: NextRequest) {
       )
     `
 
+    await sql`
+      CREATE TABLE IF NOT EXISTS categories (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        slug TEXT NOT NULL,
+        parent_id TEXT,
+        description TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS bookings (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        customer_name TEXT,
+        customer_email TEXT,
+        customer_phone TEXT,
+        service TEXT,
+        booking_date DATE,
+        booking_time TEXT,
+        status TEXT DEFAULT 'pending',
+        notes TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS discounts (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        code TEXT NOT NULL,
+        type TEXT NOT NULL,
+        amount NUMERIC(10,2) NOT NULL,
+        min_order NUMERIC(10,2) DEFAULT 0,
+        usage_limit INTEGER,
+        used_count INTEGER DEFAULT 0,
+        expiry_date DATE,
+        active BOOLEAN DEFAULT true,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS navigation_menus (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        menu_name TEXT NOT NULL DEFAULT 'Main Menu',
+        items JSONB DEFAULT '[]',
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE (client_id, menu_name)
+      )
+    `
+
     await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS password_hash TEXT`
+    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`
     await sql`ALTER TABLE activity_log ADD COLUMN IF NOT EXISTS client_id TEXT`
+    await sql`ALTER TABLE contact_forms ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}'`
 
     return NextResponse.json({ success: true, message: 'Database schema created successfully' })
   } catch (error) {

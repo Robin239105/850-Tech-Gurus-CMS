@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Plus, GripVertical, Pencil, X, Link2, ExternalLink, Home, FileText,
   Settings, HelpCircle, MessageSquare, Layout, ChevronRight, ChevronDown
@@ -32,31 +32,37 @@ const pageOptions = [
   { value: '/gallery', label: 'Gallery' },
 ]
 
-const initialMenuItems: MenuItem[] = [
-  { id: '1', label: 'Home', type: 'page', url: '/', icon: 'Home' },
-  { id: '2', label: 'About', type: 'page', url: '/about', icon: 'FileText' },
-  { 
-    id: '3', 
-    label: 'Services', 
-    type: 'page', 
-    url: '/services',
-    icon: 'Layout',
-    children: [
-      { id: '3a', label: 'Web Design', type: 'page', url: '/services/web-design' },
-      { id: '3b', label: 'Mobile Apps', type: 'page', url: '/services/mobile-apps' },
-    ]
-  },
-  { id: '4', label: 'Contact', type: 'page', url: '/contact', icon: 'MessageSquare' },
-]
-
 export default function NavigationPage() {
-  const [activeMenu, setActiveMenu] = useState('main')
-  const [menuItems, setMenuItems] = useState<MenuItem[]>(initialMenuItems)
+  const [activeMenu, setActiveMenu] = useState('main-menu')
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [showAddForm, setShowAddForm] = useState(false)
   const [newItem, setNewItem] = useState<{ label: string; type: 'page' | 'custom' | 'external'; url: string; openInNewTab: boolean }>({ label: '', type: 'page', url: '', openInNewTab: false })
   const [editingItem, setEditingItem] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
 
-  const addMenuItem = () => {
+  useEffect(() => {
+    fetch('/api/client/navigation')
+      .then(r => r.ok ? r.json() : [])
+      .then((menus: Array<{ menu_name: string; items: MenuItem[] }>) => {
+        const main = menus.find(m => m.menu_name === 'Main Menu')
+        if (main && Array.isArray(main.items)) setMenuItems(main.items)
+      })
+  }, [])
+
+  const handleSave = async () => {
+    setSaving(true)
+    await fetch('/api/client/navigation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ menu_name: 'Main Menu', items: menuItems }),
+    })
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  const addMenuItem = async () => {
     if (!newItem.label) return
     const newMenuItem: MenuItem = {
       id: Date.now().toString(),
@@ -124,9 +130,14 @@ export default function NavigationPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Navigation Menus</h1>
-        <p className="text-text-secondary mt-1">Manage your site's menus and navigation structure.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Navigation Menus</h1>
+          <p className="text-text-secondary mt-1">Manage your site's menus and navigation structure.</p>
+        </div>
+        <Button onClick={handleSave} disabled={saving}>
+          {saved ? '✓ Saved' : saving ? 'Saving…' : 'Save changes'}
+        </Button>
       </div>
 
       <div className="flex items-center gap-2 border-b">

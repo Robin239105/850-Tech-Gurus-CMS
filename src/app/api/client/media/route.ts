@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import { getClientSession } from '@/lib/client-auth'
 
@@ -18,4 +18,13 @@ export async function GET() {
   } catch (err) {
     return NextResponse.json({ message: String(err) }, { status: 500 })
   }
+}
+
+export async function DELETE(req: NextRequest) {
+  const session = await getClientSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await req.json()
+  const db = getDb()
+  await db`DELETE FROM media_files WHERE id = ${id} AND client_id = ${session.clientId}`
+  return NextResponse.json({ ok: true })
 }
