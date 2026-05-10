@@ -26,7 +26,7 @@ export async function GET(
     const { clientId } = await params
     const db = getDb()
     const rows = await db`
-      SELECT id, title, slug, excerpt, content, featured_image, author, status, created_at, updated_at
+      SELECT id, title, slug, excerpt, content, featured_image, status, created_at, updated_at
       FROM blog_posts
       WHERE client_id = ${clientId} AND status = 'published'
       ORDER BY created_at DESC
