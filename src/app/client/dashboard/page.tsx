@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useState, useEffect } from 'react'
 import {
   FileText, Plus, TrendingUp, Users, FileInput, Inbox, Eye as EyeIcon, Settings, ExternalLink, Edit
 } from 'lucide-react'
@@ -10,7 +11,27 @@ import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell
 } from '@/components/ui/table'
 
+type DashboardStats = { pages: number; media: number; submissions: number; products: number }
+
 export default function ClientDashboard() {
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/client/pages').then(r => r.ok ? r.json() : []),
+      fetch('/api/client/media').then(r => r.ok ? r.json() : []),
+      fetch('/api/client/submissions').then(r => r.ok ? r.json() : []),
+      fetch('/api/client/products').then(r => r.ok ? r.json() : []),
+    ]).then(([pages, media, submissions, products]) => {
+      setStats({
+        pages: Array.isArray(pages) ? pages.length : 0,
+        media: Array.isArray(media) ? media.length : 0,
+        submissions: Array.isArray(submissions) ? submissions.length : 0,
+        products: Array.isArray(products) ? products.length : 0,
+      })
+    })
+  }, [])
+
   const quickActions = [
     { label: 'Add new page', icon: Plus, href: '/client/pages/new' },
     { label: 'Upload media', icon: FileInput, href: '/client/media' },
@@ -44,8 +65,8 @@ export default function ClientDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-text-secondary">Total Pages</p>
-                <p className="text-2xl font-bold mt-1">—</p>
-                <p className="text-xs text-text-muted mt-1">Add pages to get started</p>
+                <p className="text-2xl font-bold mt-1">{stats?.pages ?? '—'}</p>
+                <p className="text-xs text-text-muted mt-1">{stats?.pages === 0 ? 'Add pages to get started' : `${stats?.pages} page${stats?.pages === 1 ? '' : 's'}`}</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-brand-indigo/10 flex items-center justify-center">
                 <FileText className="w-6 h-6 text-brand-indigo" />
@@ -59,8 +80,8 @@ export default function ClientDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-text-secondary">Media Files</p>
-                <p className="text-2xl font-bold mt-1">—</p>
-                <p className="text-xs text-text-muted mt-1">Upload media to get started</p>
+                <p className="text-2xl font-bold mt-1">{stats?.media ?? '—'}</p>
+                <p className="text-xs text-text-muted mt-1">{stats?.media === 0 ? 'Upload media to get started' : `${stats?.media} file${stats?.media === 1 ? '' : 's'}`}</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-status-success/10 flex items-center justify-center">
                 <FileInput className="w-6 h-6 text-status-success" />
@@ -74,8 +95,8 @@ export default function ClientDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-text-secondary">Form Submissions</p>
-                <p className="text-2xl font-bold mt-1">—</p>
-                <p className="text-xs text-text-muted mt-1">No submissions yet</p>
+                <p className="text-2xl font-bold mt-1">{stats?.submissions ?? '—'}</p>
+                <p className="text-xs text-text-muted mt-1">{stats?.submissions === 0 ? 'No submissions yet' : `${stats?.submissions} submission${stats?.submissions === 1 ? '' : 's'}`}</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-status-warning/10 flex items-center justify-center">
                 <Inbox className="w-6 h-6 text-status-warning" />
@@ -89,8 +110,8 @@ export default function ClientDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-text-secondary">Products</p>
-                <p className="text-2xl font-bold mt-1">—</p>
-                <p className="text-xs text-text-muted mt-1">No products yet</p>
+                <p className="text-2xl font-bold mt-1">{stats?.products ?? '—'}</p>
+                <p className="text-xs text-text-muted mt-1">{stats?.products === 0 ? 'No products yet' : `${stats?.products} product${stats?.products === 1 ? '' : 's'}`}</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-brand-cyan/10 flex items-center justify-center">
                 <Users className="w-6 h-6 text-brand-cyan" />

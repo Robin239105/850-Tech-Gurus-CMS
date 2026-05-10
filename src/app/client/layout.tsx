@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -61,9 +61,9 @@ const navigationItems = [
   {
     title: 'Store',
     items: [
-      { name: 'Products', href: '/client/products', icon: ShoppingBag, badge: '12' },
+      { name: 'Products', href: '/client/products', icon: ShoppingBag },
       { name: 'Categories', href: '/client/categories', icon: Tag },
-      { name: 'Orders', href: '/client/orders', icon: ShoppingCart, badge: '3' },
+      { name: 'Orders', href: '/client/orders', icon: ShoppingCart },
       { name: 'Customers', href: '/client/customers', icon: Users },
       { name: 'Discounts', href: '/client/discounts', icon: TicketPercent },
     ],
@@ -73,7 +73,7 @@ const navigationItems = [
     items: [
       { name: 'Contact Forms', href: '/client/forms', icon: FileInput },
       { name: 'Booking Forms', href: '/client/bookings', icon: Calendar },
-      { name: 'Submissions', href: '/client/submissions', icon: Inbox, badge: '24' },
+      { name: 'Submissions', href: '/client/submissions', icon: Inbox },
     ],
   },
   {
@@ -85,12 +85,31 @@ const navigationItems = [
   },
 ]
 
-const notifications: { id: number; title: string; time: string; unread: boolean }[] = []
-
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const [expandedSections, setExpandedSections] = useState<string[]>(['Overview', 'Content', 'Store', 'Forms', 'Settings'])
+  const [clientData, setClientData] = useState<Record<string, string> | null>(null)
+  const [counts, setCounts] = useState({ products: 0, orders: 0, submissions: 0 })
+
+  useEffect(() => {
+    fetch('/api/client/me').then(r => r.ok ? r.json() : null).then(setClientData)
+    Promise.all([
+      fetch('/api/client/products').then(r => r.ok ? r.json() : []),
+      fetch('/api/client/orders').then(r => r.ok ? r.json() : []),
+      fetch('/api/client/submissions').then(r => r.ok ? r.json() : []),
+    ]).then(([products, orders, submissions]) => {
+      setCounts({
+        products: (products as unknown[]).length,
+        orders: (orders as Record<string,unknown>[]).filter((o) => o.fulfillment_status === 'pending').length,
+        submissions: (submissions as Record<string,unknown>[]).filter((s) => s.status === 'new').length,
+      })
+    })
+  }, [])
+
+  const initials = clientData?.name
+    ? clientData.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+    : '?'
 
   const handleLogout = async () => {
     await fetch('/api/auth/client/logout', { method: 'POST' })
@@ -110,7 +129,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="850" className="w-10 h-10 object-contain" />
             <div className="flex-1 min-w-0">
-              <h2 className="text-white font-semibold text-sm truncate">My Website</h2>
+              <h2 className="text-white font-semibold text-sm truncate">{clientData?.name ?? 'My Website'}</h2>
               <p className="text-sidebar-muted text-xs">CMS Portal</p>
             </div>
           </div>
@@ -149,13 +168,14 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                           <item.icon className="w-4 h-4" />
                           {item.name}
                         </span>
-                        {item.badge && (
-                          <span className={cn(
-                            'text-xs px-1.5 py-0.5 rounded-full',
-                            isActive ? 'bg-white/20 text-white' : 'bg-status-danger/20 text-status-danger'
-                          )}>
-                            {item.badge}
-                          </span>
+                        {item.href === '/client/products' && counts.products > 0 && (
+                          <span className={cn('text-xs px-1.5 py-0.5 rounded-full', isActive ? 'bg-white/20 text-white' : 'bg-white/10 text-gray-300')}>{counts.products}</span>
+                        )}
+                        {item.href === '/client/orders' && counts.orders > 0 && (
+                          <span className={cn('text-xs px-1.5 py-0.5 rounded-full', isActive ? 'bg-white/20 text-white' : 'bg-status-danger/20 text-status-danger')}>{counts.orders}</span>
+                        )}
+                        {item.href === '/client/submissions' && counts.submissions > 0 && (
+                          <span className={cn('text-xs px-1.5 py-0.5 rounded-full', isActive ? 'bg-white/20 text-white' : 'bg-status-danger/20 text-status-danger')}>{counts.submissions}</span>
                         )}
                       </Link>
                     )
@@ -179,11 +199,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         <div className="p-3 border-t border-sidebar-border">
           <div className="flex items-center gap-3 px-3 py-2">
             <Avatar className="w-8 h-8">
-              <AvatarFallback className="text-xs">JS</AvatarFallback>
+              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-white text-sm font-medium truncate">My Account</p>
-              <p className="text-sidebar-muted text-xs truncate">Signed in</p>
+              <p className="text-white text-sm font-medium truncate">{clientData?.name ?? 'My Account'}</p>
+              <p className="text-sidebar-muted text-xs truncate">{clientData?.email ?? 'Signed in'}</p>
             </div>
           </div>
           <button onClick={handleLogout} className="w-full mt-2 flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-sidebar-border hover:text-white transition-all">
@@ -212,27 +232,24 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
               <DropdownMenuTrigger asChild>
                 <button className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors">
                   <Bell className="w-5 h-5 text-text-secondary" />
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-status-danger rounded-full" />
+                  {counts.submissions > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-status-danger rounded-full" />}
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-80">
                 <DropdownMenuLabel>Notifications</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {notifications.map((notif) => (
-                  <DropdownMenuItem key={notif.id} className="flex flex-col items-start gap-1 py-3">
-                    <div className="flex items-center gap-2 w-full">
-                      <span className={cn('text-sm font-medium', notif.unread ? 'text-text-primary' : 'text-text-secondary')}>
-                        {notif.title}
-                      </span>
-                      {notif.unread && <span className="w-2 h-2 bg-brand-indigo rounded-full ml-auto" />}
-                    </div>
-                    <span className="text-xs text-text-muted">{notif.time}</span>
+                {counts.submissions === 0 ? (
+                  <DropdownMenuItem disabled className="text-text-muted justify-center text-sm py-4">
+                    No new notifications
                   </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-brand-indigo justify-center text-sm">
-                  View all notifications
-                </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem asChild>
+                    <a href="/client/submissions" className="text-sm">
+                      <Inbox className="w-4 h-4 mr-2" />
+                      {counts.submissions} new form submission{counts.submissions > 1 ? 's' : ''}
+                    </a>
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -240,14 +257,15 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
                   <Avatar className="w-8 h-8">
-                    <AvatarFallback className="text-xs bg-brand-indigo text-white">ME</AvatarFallback>
+                    <AvatarFallback className="text-xs bg-brand-indigo text-white">{initials}</AvatarFallback>
                   </Avatar>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div>
-                    <p className="font-medium">My Account</p>
+                    <p className="font-medium">{clientData?.name ?? 'My Account'}</p>
+                    <p className="text-xs text-text-muted font-normal">{clientData?.email ?? ''}</p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />

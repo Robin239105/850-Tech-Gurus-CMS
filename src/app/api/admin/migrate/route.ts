@@ -113,6 +113,110 @@ export async function POST(req: NextRequest) {
       )
     `
 
+    await sql`
+      CREATE TABLE IF NOT EXISTS blog_posts (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        slug TEXT NOT NULL,
+        category TEXT,
+        status TEXT NOT NULL DEFAULT 'draft',
+        content TEXT,
+        excerpt TEXT,
+        views INTEGER DEFAULT 0,
+        published_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(client_id, slug)
+      )
+    `
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS products (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        sku TEXT,
+        description TEXT,
+        category TEXT,
+        price NUMERIC(10,2) NOT NULL DEFAULT 0,
+        sale_price NUMERIC(10,2),
+        stock INTEGER DEFAULT 0,
+        low_stock_threshold INTEGER DEFAULT 10,
+        status TEXT NOT NULL DEFAULT 'draft',
+        image TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS orders (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        order_number TEXT NOT NULL,
+        customer_name TEXT,
+        customer_email TEXT,
+        items JSONB DEFAULT '[]',
+        total NUMERIC(10,2) DEFAULT 0,
+        payment_status TEXT NOT NULL DEFAULT 'pending',
+        fulfillment_status TEXT NOT NULL DEFAULT 'pending',
+        shipping_address JSONB,
+        notes TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS form_submissions (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        form_name TEXT NOT NULL,
+        fields JSONB DEFAULT '{}',
+        status TEXT NOT NULL DEFAULT 'new',
+        ip TEXT,
+        page TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS media_files (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        url TEXT NOT NULL,
+        type TEXT,
+        size BIGINT DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS customers (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        phone TEXT,
+        orders_count INTEGER DEFAULT 0,
+        total_spent NUMERIC(10,2) DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS contact_forms (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        fields JSONB DEFAULT '[]',
+        submissions_count INTEGER DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `
+
     await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS password_hash TEXT`
     await sql`ALTER TABLE activity_log ADD COLUMN IF NOT EXISTS client_id TEXT`
 

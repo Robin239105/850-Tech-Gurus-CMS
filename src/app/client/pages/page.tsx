@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   FileText, Plus, Search, Edit, Eye, Copy, MoreHorizontal,
@@ -38,24 +38,32 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 
-const pages = [
-  { id: '1', title: 'Home', slug: '/', status: 'published', lastEdited: '2 hours ago', editor: 'John Smith' },
-  { id: '2', title: 'About Us', slug: '/about', status: 'published', lastEdited: '1 day ago', editor: 'John Smith' },
-  { id: '3', title: 'Services', slug: '/services', status: 'published', lastEdited: '3 days ago', editor: 'Jane Doe' },
-  { id: '4', title: 'Contact', slug: '/contact', status: 'draft', lastEdited: '5 days ago', editor: 'John Smith' },
-  { id: '5', title: 'Our Menu', slug: '/menu', status: 'published', lastEdited: '1 week ago', editor: 'Jane Doe' },
-  { id: '6', title: 'Gallery', slug: '/gallery', status: 'published', lastEdited: '2 weeks ago', editor: 'John Smith' },
-]
 
 const filterTabs = ['All', 'Published', 'Draft', 'Archived'] as const
 type FilterTab = typeof filterTabs[number]
 
+type Page = { id: string; title: string; slug: string; status: string; updated_at: string }
+
 export default function PagesPage() {
+  const [pages, setPages] = useState<Page[]>([])
+  const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState<FilterTab>('All')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [pageToDelete, setPageToDelete] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/client/pages').then(r => r.ok ? r.json() : []).then(setPages).finally(() => setLoading(false))
+  }, [])
+
+  const handleDelete = async () => {
+    if (!pageToDelete) return
+    await fetch(`/api/client/pages/${pageToDelete}`, { method: 'DELETE' })
+    setPages(prev => prev.filter(p => p.id !== pageToDelete))
+    setDeleteModalOpen(false)
+    setPageToDelete(null)
+  }
 
   const filteredPages = pages.filter(page => {
     const matchesSearch = page.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -64,6 +72,7 @@ export default function PagesPage() {
       (activeFilter === 'Published' && page.status === 'published') ||
       (activeFilter === 'Draft' && page.status === 'draft') ||
       (activeFilter === 'Archived' && page.status === 'archived')
+
     return matchesSearch && matchesFilter
   })
 
@@ -106,7 +115,7 @@ export default function PagesPage() {
           <TabsList>
             {filterTabs.map(tab => (
               <TabsTrigger key={tab} value={tab}>
-                {tab} {tab === 'All' ? `(${pages.length})` : tab === 'Published' ? `(${pages.filter(p => p.status === 'published').length})` : tab === 'Draft' ? `(${pages.filter(p => p.status === 'draft').length})` : '(0)'}
+                {tab} ({tab === 'All' ? pages.length : pages.filter(p => tab === 'Published' ? p.status === 'published' : tab === 'Draft' ? p.status === 'draft' : p.status === 'archived').length})
               </TabsTrigger>
             ))}
           </TabsList>
@@ -155,7 +164,13 @@ export default function PagesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredPages.map((page) => (
+            {loading ? (
+              <TableRow><TableCell colSpan={7} className="text-center py-8 text-text-muted">Loading pages…</TableCell></TableRow>
+            ) : filteredPages.length === 0 ? (
+              <TableRow><TableCell colSpan={7} className="text-center py-8 text-text-muted">
+                {pages.length === 0 ? <span>No pages yet — <Link href="/client/pages/new" className="text-brand-indigo hover:underline">create your first page</Link></span> : 'No pages match this filter'}
+              </TableCell></TableRow>
+            ) : filteredPages.map((page) => (
               <TableRow key={page.id}>
                 <TableCell>
                   <Checkbox
@@ -182,7 +197,7 @@ export default function PagesPage() {
                     {page.status}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-text-muted text-xs">{page.lastEdited}</TableCell>
+                <TableCell className="text-text-muted text-xs">{page.updated_at ? new Date(page.updated_at).toLocaleDateString() : '—'}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
                     <Link href={`/client/pages/${page.id}`}>
@@ -232,10 +247,11 @@ export default function PagesPage() {
                 </TableCell>
               </TableRow>
             ))}
+            )
           </TableBody>
         </Table>
         <div className="px-4 py-3 border-t border-card-border flex items-center justify-between">
-          <p className="text-xs text-text-secondary">Showing 1–{filteredPages.length} of {filteredPages.length} pages</p>
+          <p className="text-xs text-text-secondary">Showing {filteredPages.length} of {pages.length} pages</p>
           <div className="flex gap-1">
             <Button variant="outline" size="icon-sm" disabled>
               <ChevronLeft className="w-4 h-4" />
@@ -254,14 +270,14 @@ export default function PagesPage() {
             <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
               <AlertTriangle className="w-6 h-6 text-status-danger" />
             </div>
-            <DialogTitle className="text-center">Delete "{pages.find(p => p.id === pageToDelete)?.title}"?</DialogTitle>
+            <DialogTitle className="text-center">Delete &quot;{pages.find(p => p.id === pageToDelete)?.title}&quot;?</DialogTitle>
             <DialogDescription className="text-center">
               This action cannot be undone. This page will be permanently removed from your website.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDeleteModalOpen(false)}>Cancel</Button>
-            <Button variant="danger" onClick={() => { setDeleteModalOpen(false); setPageToDelete(null); }}>
+            <Button variant="danger" onClick={handleDelete}>
               <Trash2 className="w-4 h-4 mr-1" />
               Delete page
             </Button>

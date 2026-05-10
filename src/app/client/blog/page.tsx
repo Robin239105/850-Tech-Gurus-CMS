@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   Search, Edit, Eye, MoreHorizontal, ChevronLeft, ChevronRight,
@@ -20,16 +20,6 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 
-const blogPosts = [
-  { id: '1', title: 'Getting Started with Next.js 14', category: 'Technology', status: 'published', views: 1250, publishedDate: '2024-01-15' },
-  { id: '2', title: 'Building Modern Web Applications', category: 'Tutorial', status: 'published', views: 980, publishedDate: '2024-01-12' },
-  { id: '3', title: 'The Future of AI in Web Development', category: 'News', status: 'published', views: 2100, publishedDate: '2024-01-10' },
-  { id: '4', title: 'Mastering React Hooks', category: 'Tutorial', status: 'draft', views: 0, publishedDate: '' },
-  { id: '5', title: 'Best Practices for API Design', category: 'Business', status: 'published', views: 850, publishedDate: '2024-01-08' },
-  { id: '6', title: 'Introduction to TypeScript', category: 'Technology', status: 'scheduled', views: 0, publishedDate: '2024-01-25' },
-  { id: '7', title: 'CSS Grid vs Flexbox', category: 'Tutorial', status: 'published', views: 1500, publishedDate: '2024-01-05' },
-  { id: '8', title: 'Performance Optimization Tips', category: 'Technology', status: 'draft', views: 0, publishedDate: '' },
-]
 
 const filterTabs = ['All', 'Published', 'Draft', 'Scheduled'] as const
 type FilterTab = typeof filterTabs[number]
@@ -40,13 +30,26 @@ const statusVariant = {
   scheduled: 'blue' as const,
 }
 
+type Post = { id: string; title: string; category: string | null; status: string; views: number; published_at: string | null; created_at: string }
+
 export default function BlogPage() {
+  const [posts, setPosts] = useState<Post[]>([])
+  const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState<FilterTab>('All')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState('newest')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
-  const filteredPosts = blogPosts.filter(post => {
+  useEffect(() => {
+    fetch('/api/client/blog').then(r => r.ok ? r.json() : []).then(setPosts).finally(() => setLoading(false))
+  }, [])
+
+  const handleDelete = async (id: string) => {
+    await fetch('/api/client/blog', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    setPosts(prev => prev.filter(p => p.id !== id))
+  }
+
+  const filteredPosts = posts.filter(post => {
     const matchesSearch = post.title.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesFilter = activeFilter === 'All' ||
       (activeFilter === 'Published' && post.status === 'published') ||
@@ -55,19 +58,8 @@ export default function BlogPage() {
     return matchesSearch && matchesFilter
   })
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    )
-  }
-
-  const toggleSelectAll = () => {
-    if (selectedIds.length === filteredPosts.length) {
-      setSelectedIds([])
-    } else {
-      setSelectedIds(filteredPosts.map(p => p.id))
-    }
-  }
+  const toggleSelect = (id: string) => setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
+  const toggleSelectAll = () => selectedIds.length === filteredPosts.length ? setSelectedIds([]) : setSelectedIds(filteredPosts.map(p => p.id))
 
   return (
     <div className="space-y-6">
@@ -145,7 +137,13 @@ export default function BlogPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredPosts.map((post) => (
+            {loading ? (
+              <TableRow><TableCell colSpan={7} className="text-center py-8 text-text-muted">Loading…</TableCell></TableRow>
+            ) : filteredPosts.length === 0 ? (
+              <TableRow><TableCell colSpan={7} className="text-center py-8 text-text-muted">
+                {posts.length === 0 ? <span>No posts yet — <Link href="/client/blog/new" className="text-brand-indigo hover:underline">write your first post</Link></span> : 'No posts match this filter'}
+              </TableCell></TableRow>
+            ) : filteredPosts.map((post) => (
               <TableRow key={post.id}>
                 <TableCell>
                   <Checkbox
@@ -166,9 +164,9 @@ export default function BlogPage() {
                     {post.status.charAt(0).toUpperCase() + post.status.slice(1)}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-text-muted">{post.views.toLocaleString()}</TableCell>
+                <TableCell className="text-text-muted">{(post.views ?? 0).toLocaleString()}</TableCell>
                 <TableCell className="text-text-muted text-sm">
-                  {post.publishedDate ? new Date(post.publishedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                  {post.published_at ? new Date(post.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
@@ -197,7 +195,7 @@ export default function BlogPage() {
                         </DropdownMenuItem>
                         <DropdownMenuItem>Duplicate</DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-status-danger">Delete</DropdownMenuItem>
+                        <DropdownMenuItem className="text-status-danger" onClick={() => handleDelete(post.id)}>Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -207,18 +205,7 @@ export default function BlogPage() {
           </TableBody>
         </Table>
         <div className="px-4 py-3 border-t border-card-border flex items-center justify-between">
-          <p className="text-xs text-text-secondary">Showing 1–{filteredPosts.length} of {filteredPosts.length} posts</p>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon-sm" disabled>
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <Button variant="default" size="icon-sm">1</Button>
-            <Button variant="outline" size="icon-sm">2</Button>
-            <Button variant="outline" size="icon-sm">3</Button>
-            <Button variant="outline" size="icon-sm">
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
+          <p className="text-xs text-text-secondary">Showing {filteredPosts.length} of {posts.length} posts</p>
         </div>
       </Card>
     </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   Search,
@@ -20,16 +20,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 
-const mockProducts = [
-  { id: '1', name: 'Wireless Headphones', sku: 'WH-001', category: 'Electronics', price: 149.99, salePrice: 129.99, stock: 45, lowStock: 10, status: 'active', image: '/images/product-1.jpg', updatedAt: '2026-05-10' },
-  { id: '2', name: 'Smart Watch Pro', sku: 'SW-002', category: 'Electronics', price: 299.99, salePrice: null, stock: 12, lowStock: 5, status: 'active', image: '/images/product-2.jpg', updatedAt: '2026-05-09' },
-  { id: '3', name: 'Organic Coffee Beans', sku: 'OC-003', category: 'Food & Beverage', price: 24.99, salePrice: 19.99, stock: 0, lowStock: 20, status: 'out-of-stock', image: '/images/product-3.jpg', updatedAt: '2026-05-08' },
-  { id: '4', name: 'Yoga Mat Premium', sku: 'YM-004', category: 'Fitness', price: 49.99, salePrice: null, stock: 78, lowStock: 10, status: 'active', image: '/images/product-4.jpg', updatedAt: '2026-05-07' },
-  { id: '5', name: 'Bluetooth Speaker', sku: 'BS-005', category: 'Electronics', price: 89.99, salePrice: null, stock: 34, lowStock: 10, status: 'active', image: '/images/product-5.jpg', updatedAt: '2026-05-06' },
-  { id: '6', name: 'Running Shoes', sku: 'RS-006', category: 'Sports', price: 129.99, salePrice: 99.99, stock: 23, lowStock: 15, status: 'active', image: '/images/product-6.jpg', updatedAt: '2026-05-05' },
-  { id: '7', name: 'Water Bottle', sku: 'WB-007', category: 'Accessories', price: 29.99, salePrice: null, stock: 156, lowStock: 20, status: 'active', image: '/images/product-7.jpg', updatedAt: '2026-05-04' },
-  { id: '8', name: 'Laptop Stand', sku: 'LS-008', category: 'Electronics', price: 59.99, salePrice: null, stock: 0, lowStock: 10, status: 'draft', image: '/images/product-8.jpg', updatedAt: '2026-05-03' },
-]
 
 const filterTabs = ['All', 'Active', 'Draft', 'Out of stock', 'Archived']
 
@@ -40,21 +30,37 @@ const statusColors = {
   archived: 'bg-gray-100 text-gray-400',
 }
 
+type Product = { id: string; name: string; sku: string | null; category: string | null; price: number; sale_price: number | null; stock: number; low_stock_threshold: number; status: string; updated_at: string }
+
 export default function ProductsPage() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('All')
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
 
-  const filteredProducts = mockProducts.filter(product => {
+  useEffect(() => {
+    fetch('/api/client/products').then(r => r.ok ? r.json() : []).then(setProducts).finally(() => setLoading(false))
+  }, [])
+
+  const handleDelete = async (id: string) => {
+    await fetch('/api/client/products', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    setProducts(prev => prev.filter(p => p.id !== id))
+  }
+
+  const filteredProducts = products.filter(product => {
     const matchesTab = activeTab === 'All' || 
       (activeTab === 'Active' && product.status === 'active') ||
       (activeTab === 'Draft' && product.status === 'draft') ||
       (activeTab === 'Out of stock' && (product.status === 'out-of-stock' || product.stock === 0)) ||
       (activeTab === 'Archived' && product.status === 'archived')
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      product.sku.toLowerCase().includes(searchQuery.toLowerCase())
+      (product.sku ?? '').toLowerCase().includes(searchQuery.toLowerCase())
     return matchesTab && matchesSearch
   })
+
+  const outOfStock = products.filter(p => p.stock === 0).length
+  const lowStock = products.filter(p => p.stock > 0 && p.stock <= p.low_stock_threshold).length
 
   const handleSelectAll = () => {
     if (selectedProducts.length === filteredProducts.length) {
@@ -77,9 +83,9 @@ export default function ProductsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-text-secondary">Total Products</p>
-                <p className="text-2xl font-bold mt-1">48</p>
+                <p className="text-2xl font-bold mt-1">{products.length}</p>
               </div>
-              <div className="text-xs text-text-muted">2 out of stock</div>
+              <div className="text-xs text-text-muted">{outOfStock} out of stock</div>
             </div>
           </CardContent>
         </Card>
@@ -87,10 +93,10 @@ export default function ProductsPage() {
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-text-secondary">New This Week</p>
-                <p className="text-2xl font-bold mt-1">5</p>
+                <p className="text-sm text-text-secondary">Active Products</p>
+                <p className="text-2xl font-bold mt-1">{products.filter(p => p.status === 'active').length}</p>
               </div>
-              <div className="text-xs text-status-success">+12%</div>
+              <div className="text-xs text-text-muted">{products.filter(p => p.status === 'draft').length} draft</div>
             </div>
           </CardContent>
         </Card>
@@ -99,9 +105,9 @@ export default function ProductsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-text-secondary">Low Stock Alert</p>
-                <p className="text-2xl font-bold mt-1">3</p>
+                <p className="text-2xl font-bold mt-1">{lowStock}</p>
               </div>
-              <div className="text-xs text-status-danger">Needs attention</div>
+              <div className={`text-xs ${lowStock > 0 ? 'text-status-danger' : 'text-status-success'}`}>{lowStock > 0 ? 'Needs attention' : 'All good'}</div>
             </div>
           </CardContent>
         </Card>
@@ -191,7 +197,13 @@ export default function ProductsPage() {
             </tr>
           </thead>
           <tbody>
-            {filteredProducts.map(product => (
+            {loading ? (
+              <tr><td colSpan={8} className="p-8 text-center text-text-muted">Loading…</td></tr>
+            ) : filteredProducts.length === 0 ? (
+              <tr><td colSpan={8} className="p-8 text-center text-text-muted">
+                {products.length === 0 ? <span>No products yet — <Link href="/client/products/new" className="text-brand-indigo hover:underline">add your first product</Link></span> : 'No products match this filter'}
+              </td></tr>
+            ) : filteredProducts.map(product => (
               <tr key={product.id} className="border-b border-card-border hover:bg-gray-50">
                 <td className="p-3">
                   <Checkbox 
@@ -213,13 +225,13 @@ export default function ProductsPage() {
                 <td className="p-3 text-sm text-text-secondary">{product.category}</td>
                 <td className="p-3">
                   <div>
-                    {product.salePrice ? (
+                    {product.sale_price ? (
                       <>
-                        <span className="text-sm font-medium text-status-success">{formatCurrency(product.salePrice)}</span>
-                        <span className="text-xs text-text-muted line-through ml-2">{formatCurrency(product.price)}</span>
+                        <span className="text-sm font-medium text-status-success">{formatCurrency(Number(product.sale_price))}</span>
+                        <span className="text-xs text-text-muted line-through ml-2">{formatCurrency(Number(product.price))}</span>
                       </>
                     ) : (
-                      <span className="text-sm font-medium">{formatCurrency(product.price)}</span>
+                      <span className="text-sm font-medium">{formatCurrency(Number(product.price))}</span>
                     )}
                   </div>
                 </td>
@@ -230,9 +242,9 @@ export default function ProductsPage() {
                       <div 
                         className={cn(
                           'h-full rounded-full',
-                          product.stock === 0 ? 'bg-status-danger' : product.stock <= product.lowStock ? 'bg-status-warning' : 'bg-status-success'
+                          product.stock === 0 ? 'bg-status-danger' : product.stock <= product.low_stock_threshold ? 'bg-status-warning' : 'bg-status-success'
                         )}
-                        style={{ width: `${getStockPercentage(product.stock, product.lowStock)}%` }}
+                        style={{ width: `${getStockPercentage(product.stock, product.low_stock_threshold)}%` }}
                       />
                     </div>
                   </div>
@@ -242,7 +254,7 @@ export default function ProductsPage() {
                     {product.status === 'out-of-stock' ? 'Out of stock' : product.status.charAt(0).toUpperCase() + product.status.slice(1)}
                   </span>
                 </td>
-                <td className="p-3 text-sm text-text-secondary">{formatDate(product.updatedAt)}</td>
+                <td className="p-3 text-sm text-text-secondary">{product.updated_at ? formatDate(product.updated_at) : '—'}</td>
                 <td className="p-3">
                   <div className="flex items-center gap-1">
                     <Link href={`/client/products/${product.id}`}>
@@ -259,7 +271,7 @@ export default function ProductsPage() {
                     <button className="p-1.5 hover:bg-gray-100 rounded">
                       <Archive className="w-4 h-4 text-text-muted" />
                     </button>
-                    <button className="p-1.5 hover:bg-gray-100 rounded text-status-danger">
+                    <button className="p-1.5 hover:bg-gray-100 rounded text-status-danger" onClick={() => handleDelete(product.id)}>
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -271,7 +283,7 @@ export default function ProductsPage() {
       </div>
 
       <div className="flex items-center justify-between">
-        <p className="text-sm text-text-muted">Showing {filteredProducts.length} of {mockProducts.length} products</p>
+        <p className="text-sm text-text-muted">Showing {filteredProducts.length} of {products.length} products</p>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm">Previous</Button>
           <Button variant="outline" size="sm">Next</Button>
