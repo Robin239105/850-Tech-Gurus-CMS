@@ -1,21 +1,37 @@
 'use client'
 
-import { useState } from 'react'
-import { Activity, AlertTriangle, CheckCircle, XCircle, AlertCircle, Pause } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { AlertTriangle, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { formatDate } from '@/lib/utils'
 
-const systemServices = [
-  { name: 'API Gateway', status: 'operational' as const, uptime: 99.9, responseTime: 42, sparkline: [40,38,45,42,44,41,43,40,42,38,41,42] },
-  { name: 'Database', status: 'operational' as const, uptime: 99.95, responseTime: 18, sparkline: [15,18,16,19,17,18,16,17,18,15,17,18] },
-  { name: 'File Storage', status: 'operational' as const, uptime: 99.8, responseTime: 65, sparkline: [60,62,68,65,70,64,63,66,65,62,64,65] },
-  { name: 'Email Service', status: 'operational' as const, uptime: 99.7, responseTime: 120, sparkline: [110,118,125,120,130,115,120,122,118,120,115,120] },
-  { name: 'Auth Service', status: 'operational' as const, uptime: 100, responseTime: 28, sparkline: [25,27,30,28,26,29,28,27,26,28,27,28] },
-  { name: 'CDN', status: 'operational' as const, uptime: 99.99, responseTime: 12, sparkline: [10,12,11,13,12,11,12,10,12,11,11,12] },
+type ServiceStatus = 'operational' | 'degraded' | 'down'
+
+type Service = {
+  name: string
+  endpoint: string
+  status: ServiceStatus
+  responseTime: number | null
+  history: number[]
+  checkedAt: string
+}
+
+const SERVICE_DEFS = [
+  { name: 'API — Clients',      endpoint: '/api/admin/clients' },
+  { name: 'API — Dashboard',    endpoint: '/api/admin/dashboard' },
+  { name: 'API — Tickets',      endpoint: '/api/admin/tickets' },
+  { name: 'API — Notifications',endpoint: '/api/admin/notifications' },
+  { name: 'API — Activity',     endpoint: '/api/admin/activity' },
+  { name: 'API — Settings',     endpoint: '/api/admin/settings' },
 ]
+
+function deriveStatus(ms: number | null): ServiceStatus {
+  if (ms === null) return 'down'
+  if (ms > 2000) return 'degraded'
+  return 'operational'
+}
 
 const statusIcons = {
   operational: CheckCircle,
@@ -29,31 +45,66 @@ const statusColors = {
   down: 'text-status-danger',
 }
 
-const incidents = [
-  { id: 'inc_001', service: 'Email Service', status: 'resolved', severity: 'medium', start: '2026-05-10T07:30:00Z', end: '2026-05-10T09:15:00Z', description: 'Delayed email delivery due to high queue volume' },
-  { id: 'inc_002', service: 'API Gateway', status: 'resolved', severity: 'low', start: '2026-05-08T14:00:00Z', end: '2026-05-08T14:30:00Z', description: 'Brief timeout issues during peak hours' },
-]
-
-function MiniChart({ data, color = 'bg-brand-indigo' }: { data: number[]; color?: string }) {
-  const max = Math.max(...data)
-  const min = Math.min(...data)
-  const range = max - min || 1
-
+function MiniChart({ data }: { data: number[] }) {
+  const max = Math.max(...data, 1)
   return (
     <div className="flex items-end gap-0.5 h-8">
-      {data.map((value, index) => (
+      {data.map((v, i) => (
         <div
-          key={index}
-          className={`w-1.5 ${color} rounded-sm`}
-          style={{ height: `${((value - min) / range) * 100}%` }}
+          key={i}
+          className="w-1.5 bg-brand-indigo/60 rounded-sm"
+          style={{ height: `${Math.max(10, (v / max) * 100)}%` }}
         />
       ))}
     </div>
   )
 }
 
+async function pingService(endpoint: string): Promise<number | null> {
+  try {
+    const start = performance.now()
+    const res = await fetch(endpoint, { method: 'GET' })
+    const ms = Math.round(performance.now() - start)
+    return res.status < 500 ? ms : null
+  } catch {
+    return null
+  }
+}
+
 export default function SystemHealthPage() {
   const [maintenanceMode, setMaintenanceMode] = useState(false)
+  const [services, setServices] = useState<Service[]>(
+    SERVICE_DEFS.map(s => ({ ...s, status: 'operational', responseTime: null, history: [], checkedAt: '' }))
+  )
+  const [checking, setChecking] = useState(false)
+  const [lastChecked, setLastChecked] = useState<string>('')
+
+  const runChecks = useCallback(async () => {
+    setChecking(true)
+    const results = await Promise.all(
+      SERVICE_DEFS.map(async (def) => {
+        const ms = await pingService(def.endpoint)
+        return { ...def, status: deriveStatus(ms), responseTime: ms, checkedAt: new Date().toISOString() }
+      })
+    )
+    setServices(prev =>
+      results.map((r, i) => ({
+        ...r,
+        history: [...(prev[i]?.history ?? []).slice(-11), r.responseTime ?? 0],
+      }))
+    )
+    setLastChecked(new Date().toLocaleTimeString())
+    setChecking(false)
+  }, [])
+
+  useEffect(() => { runChecks() }, [runChecks])
+
+  const downCount = services.filter(s => s.status === 'down').length
+  const degradedCount = services.filter(s => s.status === 'degraded').length
+  const avgResponse = Math.round(
+    services.filter(s => s.responseTime !== null).reduce((sum, s) => sum + (s.responseTime ?? 0), 0) /
+    Math.max(1, services.filter(s => s.responseTime !== null).length)
+  )
 
   return (
     <div className="space-y-6">
@@ -63,6 +114,11 @@ export default function SystemHealthPage() {
           <p className="text-sm text-text-secondary mt-1">Monitor platform services and status</p>
         </div>
         <div className="flex items-center gap-3">
+          {lastChecked && <span className="text-xs text-text-muted">Last checked: {lastChecked}</span>}
+          <Button variant="outline" size="sm" onClick={runChecks} disabled={checking}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${checking ? 'animate-spin' : ''}`} />
+            {checking ? 'Checking…' : 'Check Now'}
+          </Button>
           <span className="text-sm text-text-secondary">Maintenance Mode</span>
           <Switch checked={maintenanceMode} onCheckedChange={setMaintenanceMode} />
         </div>
@@ -81,7 +137,7 @@ export default function SystemHealthPage() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {systemServices.map((service) => {
+        {services.map((service) => {
           const StatusIcon = statusIcons[service.status]
           return (
             <Card key={service.name} className="p-5">
@@ -97,21 +153,19 @@ export default function SystemHealthPage() {
                   {service.status}
                 </Badge>
               </div>
-
-              <div className="grid grid-cols-3 gap-2 mb-3">
-                <div className="text-center p-2 bg-gray-50 rounded">
-                  <p className="text-xs text-text-muted">Uptime</p>
-                  <p className="text-sm font-semibold text-text-primary">{service.uptime}%</p>
-                </div>
+              <div className="grid grid-cols-2 gap-2 mb-3">
                 <div className="text-center p-2 bg-gray-50 rounded">
                   <p className="text-xs text-text-muted">Response</p>
-                  <p className="text-sm font-semibold text-text-primary">{service.responseTime}ms</p>
+                  <p className="text-sm font-semibold text-text-primary">
+                    {checking && service.responseTime === null ? '…' : service.responseTime !== null ? `${service.responseTime}ms` : 'N/A'}
+                  </p>
                 </div>
                 <div className="text-center p-2 bg-gray-50 rounded">
-                  <p className="text-xs text-text-muted">24h Trend</p>
-                  <MiniChart data={service.sparkline} />
+                  <p className="text-xs text-text-muted">Trend</p>
+                  <MiniChart data={service.history.length > 0 ? service.history : [0]} />
                 </div>
               </div>
+              <p className="text-xs text-text-muted">{service.endpoint}</p>
             </Card>
           )
         })}
@@ -122,58 +176,33 @@ export default function SystemHealthPage() {
           <h2 className="text-h3">Incident History</h2>
           <Badge variant="gray">Last 30 days</Badge>
         </div>
-        <div className="overflow-x-auto">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Service</th>
-                <th>Status</th>
-                <th>Severity</th>
-                <th>Started</th>
-                <th>Resolved</th>
-                <th>Duration</th>
-              </tr>
-            </thead>
-            <tbody>
-              {incidents.map((incident) => (
-                <tr key={incident.id}>
-                  <td className="font-medium text-text-primary">{incident.service}</td>
-                  <td>
-                    <Badge variant="green">Resolved</Badge>
-                  </td>
-                  <td>
-                    <Badge className={incident.severity === 'medium' ? 'badge-amber' : 'badge-gray'}>
-                      {incident.severity}
-                    </Badge>
-                  </td>
-                  <td className="text-text-secondary text-xs">{formatDate(incident.start)}</td>
-                  <td className="text-text-secondary text-xs">{formatDate(incident.end)}</td>
-                  <td className="text-text-secondary">1h 45m</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <p className="text-sm text-text-muted text-center py-6">No incidents recorded in the last 30 days.</p>
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="p-5">
-          <h2 className="text-h3 mb-4">Quick Stats</h2>
+          <h2 className="text-h3 mb-4">Live Stats</h2>
           <div className="grid grid-cols-2 gap-4">
             <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <p className="text-3xl font-bold text-status-success">99.9%</p>
-              <p className="text-xs text-text-muted mt-1">Overall Uptime</p>
+              <p className={`text-3xl font-bold ${downCount === 0 ? 'text-status-success' : 'text-status-danger'}`}>
+                {services.length - downCount - degradedCount}/{services.length}
+              </p>
+              <p className="text-xs text-text-muted mt-1">Services Online</p>
             </div>
             <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <p className="text-3xl font-bold text-text-primary">2</p>
-              <p className="text-xs text-text-muted mt-1">Active Incidents</p>
+              <p className={`text-3xl font-bold ${downCount > 0 ? 'text-status-danger' : degradedCount > 0 ? 'text-status-warning' : 'text-status-success'}`}>
+                {downCount + degradedCount}
+              </p>
+              <p className="text-xs text-text-muted mt-1">Issues Detected</p>
             </div>
             <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <p className="text-3xl font-bold text-text-primary">45ms</p>
+              <p className="text-3xl font-bold text-text-primary">{checking ? '…' : `${avgResponse}ms`}</p>
               <p className="text-xs text-text-muted mt-1">Avg Response</p>
             </div>
             <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <p className="text-3xl font-bold text-status-success">0</p>
+              <p className={`text-3xl font-bold ${downCount === 0 ? 'text-status-success' : 'text-status-danger'}`}>
+                {downCount}
+              </p>
               <p className="text-xs text-text-muted mt-1">Down Services</p>
             </div>
           </div>
