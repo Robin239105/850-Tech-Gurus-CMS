@@ -123,6 +123,9 @@ export async function POST(req: NextRequest) {
         status TEXT NOT NULL DEFAULT 'draft',
         content TEXT,
         excerpt TEXT,
+        featured_image TEXT,
+        meta_title TEXT,
+        meta_description TEXT,
         views INTEGER DEFAULT 0,
         published_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -277,6 +280,9 @@ export async function POST(req: NextRequest) {
     await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`
     await sql`ALTER TABLE activity_log ADD COLUMN IF NOT EXISTS client_id TEXT`
     await sql`ALTER TABLE contact_forms ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}'`
+    await sql`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS meta_title TEXT`
+    await sql`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS meta_description TEXT`
+    await sql`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS featured_image TEXT`
 
     return NextResponse.json({ success: true, message: 'Database schema created successfully' })
   } catch (error) {
