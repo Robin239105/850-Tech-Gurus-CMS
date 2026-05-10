@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
-  ArrowLeft, Eye, EyeOff, Undo, Redo, Save, Monitor, Tablet, Smartphone,
+  ArrowLeft, Save, Loader2, Monitor, Tablet, Smartphone,
   MoreHorizontal, ChevronDown, ChevronRight, Plus, X, GripVertical,
-  Image, Trash2, Settings, History, Copy, ExternalLink, AlertTriangle
+  Image, Trash2, Settings, AlertTriangle
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -20,7 +21,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
-import { cn } from '@/lib/utils'
+import { cn, slugify } from '@/lib/utils'
 
 type DeviceType = 'desktop' | 'tablet' | 'mobile'
 type SectionType = 'hero' | 'about' | 'services' | 'gallery' | 'testimonials' | 'contact' | 'cta' | 'pricing' | 'video' | 'map' | 'custom-html'
@@ -52,55 +53,77 @@ interface PricingItem {
   highlighted: boolean
 }
 
-const mockPage = {
-  title: 'Home',
-  slug: '/',
-  status: 'published',
-  sections: [
-    {
-      type: 'hero' as SectionType,
-      heading: 'Welcome to Our Website',
-      subheading: 'We create amazing digital experiences that help businesses grow',
-      button1Text: 'Get Started',
-      button1Url: '/contact',
-      button2Text: 'Learn More',
-      button2Url: '/about',
-      backgroundImage: '',
-      backgroundColor: '#1a1a2e',
-      textAlign: 'center' as const,
-      textColor: '#ffffff'
-    },
-    {
-      type: 'about' as SectionType,
-      title: 'About Us',
-      body: 'We are a team of passionate professionals dedicated to delivering exceptional results. With years of experience in the industry, we have helped numerous clients achieve their goals.',
-      image: '',
-      imagePosition: 'left' as const,
-      imageAlt: 'About us team'
-    },
-    {
-      type: 'services' as SectionType,
-      title: 'Our Services',
-      layout: '3col',
-      items: [
-        { id: '1', icon: '🚀', title: 'Web Development', description: 'Custom websites built with modern technologies', link: '/services/web' },
-        { id: '2', icon: '📱', title: 'Mobile Apps', description: 'Native and cross-platform mobile applications', link: '/services/mobile' },
-        { id: '3', icon: '🎨', title: 'UI/UX Design', description: 'Beautiful and intuitive user interfaces', link: '/services/design' }
-      ] as ServiceItem[]
-    }
-  ]
-}
-
 export default function PageEditorPage() {
-  const [pageTitle, setPageTitle] = useState(mockPage.title)
-  const [status, setStatus] = useState(mockPage.status)
+  const router = useRouter()
+  const params = useParams<{ id: string }>()
+  const id = params.id
+
+  const [pageTitle, setPageTitle] = useState('')
+  const [slug, setSlug] = useState('')
+  const [status, setStatus] = useState('draft')
+  const [sections, setSections] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [device, setDevice] = useState<DeviceType>('desktop')
-  const [expandedSections, setExpandedSections] = useState<string[]>(['hero', 'about', 'services'])
+  const [expandedSections, setExpandedSections] = useState<string[]>([])
   const [showPageSettings, setShowPageSettings] = useState(false)
   const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [showUnsavedModal, setShowUnsavedModal] = useState(false)
-  const [sections, setSections] = useState(mockPage.sections)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/client/pages')
+      .then(r => r.ok ? r.json() : [])
+      .then((pages: any[]) => {
+        const page = pages.find((p: any) => p.id === id)
+        if (page) {
+          setPageTitle(page.title)
+          setSlug(page.slug)
+          setStatus(page.status)
+          const content = typeof page.content === 'string' ? JSON.parse(page.content) : page.content
+          setSections(Array.isArray(content?.sections) ? content.sections : [])
+          setExpandedSections(Array.isArray(content?.sections) ? content.sections.map((s: any) => s.type) : [])
+        }
+      })
+      .finally(() => setLoading(false))
+  }, [id])
+
+  const save = async (overrideStatus?: string) => {
+    setError('')
+    setSaving(true)
+    try {
+      const res = await fetch('/api/client/pages', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id, title: pageTitle, slug,
+          status: overrideStatus ?? status,
+          content: { sections },
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.message ?? 'Failed to save'); return }
+      setStatus(data.status)
+      setHasUnsavedChanges(false)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch {
+      setError('Network error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!confirmDelete) { setConfirmDelete(true); return }
+    await fetch('/api/client/pages', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    router.push('/client/pages')
+  }
+
+  if (loading) return <div className="flex items-center justify-center min-h-screen text-text-muted">Loading page…</div>
 
   const toggleSection = (type: string) => {
     setExpandedSections(prev =>
@@ -531,28 +554,21 @@ export default function PageEditorPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          {saved && <span className="text-green-600 text-sm">Saved ✓</span>}
+          {error && <span className="text-red-500 text-sm">{error}</span>}
           <Badge variant={status === 'published' ? 'green' : status === 'draft' ? 'amber' : 'indigo'}>
             {hasUnsavedChanges ? (
-              <><span className="w-2 h-2 rounded-full bg-brand-indigo mr-1.5 animate-pulse" /> Unsaved changes</>
-            ) : status === 'published' ? 'Published' : status === 'draft' ? 'Draft' : status}
+              <><span className="w-2 h-2 rounded-full bg-brand-indigo mr-1.5 animate-pulse" /> Unsaved</>
+            ) : status === 'published' ? 'Published' : 'Draft'}
           </Badge>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon-sm" title="Toggle preview">
-            <Eye className="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="icon-sm" title="Undo">
-            <Undo className="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="icon-sm" title="Redo">
-            <Redo className="w-4 h-4" />
-          </Button>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Save className="w-4 h-4" />
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => save('draft')} disabled={saving}>
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save draft
           </Button>
-          <Button size="sm">Publish</Button>
+          <Button size="sm" onClick={() => save('published')} disabled={saving}>Publish</Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon-sm">
@@ -560,26 +576,14 @@ export default function PageEditorPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setShowVersionHistory(true)}>
-                <History className="w-4 h-4 mr-2" />
-                Version history
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Copy className="w-4 h-4 mr-2" />
-                Duplicate page
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Preview in new tab
-              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setShowPageSettings(true)}>
                 <Settings className="w-4 h-4 mr-2" />
                 Page settings
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-status-danger">
+              <DropdownMenuItem className="text-status-danger" onClick={handleDelete}>
                 <Trash2 className="w-4 h-4 mr-2" />
-                Delete page
+                {confirmDelete ? 'Click again to confirm' : 'Delete page'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -667,16 +671,11 @@ export default function PageEditorPage() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Page Title</label>
-              <Input defaultValue={pageTitle} onChange={(e) => setPageTitle(e.target.value)} />
+              <Input value={pageTitle} onChange={(e) => { setPageTitle(e.target.value); setHasUnsavedChanges(true) }} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">URL Slug</label>
-              <Input defaultValue={mockPage.slug} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Meta Description</label>
-              <Textarea placeholder="Enter meta description..." className="min-h-[80px]" />
-              <span className="text-xs text-text-muted">0/160 characters</span>
+              <Input value={slug} onChange={(e) => setSlug(e.target.value)} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">OG Image</label>

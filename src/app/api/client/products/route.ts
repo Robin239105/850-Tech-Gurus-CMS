@@ -42,10 +42,21 @@ export async function PATCH(req: NextRequest) {
   const session = await getClientSession()
   if (!session) return NextResponse.json({ message: 'Unauthorised' }, { status: 401 })
   try {
-    const { id, status } = await req.json()
+    const { id, name, sku, description, category, price, sale_price, stock, low_stock_threshold, status, image } = await req.json()
     const db = getDb()
     const rows = await db`
-      UPDATE products SET status = ${status}, updated_at = NOW()
+      UPDATE products SET
+        name = COALESCE(${name ?? null}, name),
+        sku = COALESCE(${sku ?? null}, sku),
+        description = COALESCE(${description ?? null}, description),
+        category = COALESCE(${category ?? null}, category),
+        price = COALESCE(${price ?? null}, price),
+        sale_price = COALESCE(${sale_price ?? null}, sale_price),
+        stock = COALESCE(${stock ?? null}, stock),
+        low_stock_threshold = COALESCE(${low_stock_threshold ?? null}, low_stock_threshold),
+        status = COALESCE(${status ?? null}, status),
+        image = COALESCE(${image ?? null}, image),
+        updated_at = NOW()
       WHERE id = ${id} AND client_id = ${session.clientId} RETURNING *
     `
     return NextResponse.json(rows[0])

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ChevronRight,
@@ -8,33 +9,69 @@ import {
   Plus,
   X,
   Save,
-  Check,
+  Send,
+  Loader2,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, slugify } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Checkbox } from '@/components/ui/checkbox'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 
 const categories = ['Electronics', 'Fitness', 'Food & Beverage', 'Accessories', 'Sports', 'Clothing', 'Home & Garden']
 const shippingClasses = ['Standard', 'Express', 'Pickup only', 'Digital']
 
-const mockCategories = [
-  { id: '1', name: 'Electronics', children: ['Audio', 'Video', 'Accessories'] },
-  { id: '2', name: 'Fitness', children: ['Equipment', 'Apparel', 'Supplements'] },
-  { id: '3', name: 'Home & Garden', children: ['Furniture', 'Decor', 'Kitchen'] },
-]
-
 export default function NewProductPage() {
+  const router = useRouter()
   const [productType, setProductType] = useState<'simple' | 'variable'>('simple')
   const [attributes, setAttributes] = useState<{ name: string; values: string[] }[]>([])
   const [trackInventory, setTrackInventory] = useState(true)
   const [allowBackorders, setAllowBackorders] = useState(false)
   const [tags, setTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [shortDescription, setShortDescription] = useState('')
+  const [category, setCategory] = useState('')
+  const [price, setPrice] = useState('')
+  const [salePrice, setSalePrice] = useState('')
+  const [sku, setSku] = useState('')
+  const [stock, setStock] = useState('0')
+  const [lowStockThreshold, setLowStockThreshold] = useState('5')
+  const [status, setStatus] = useState('draft')
+
+  const save = async (overrideStatus?: string) => {
+    if (!name.trim()) { setError('Product name is required'); return }
+    setError('')
+    setSaving(true)
+    try {
+      const res = await fetch('/api/client/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name, sku: sku || null,
+          description: description || null,
+          category: category || null,
+          price: parseFloat(price) || 0,
+          sale_price: salePrice ? parseFloat(salePrice) : null,
+          stock: parseInt(stock) || 0,
+          low_stock_threshold: parseInt(lowStockThreshold) || 5,
+          status: overrideStatus ?? status,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.message ?? 'Failed to save'); return }
+      router.push(`/client/products/${data.id}`)
+    } catch {
+      setError('Network error')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const addAttribute = () => {
     setAttributes([...attributes, { name: '', values: [] }])
@@ -72,6 +109,7 @@ export default function NewProductPage() {
         <ChevronRight className="w-4 h-4" />
         <span className="text-text-primary">Add new product</span>
       </div>
+      {error && <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-2 rounded-md">{error}</div>}
 
       <div className="grid grid-cols-5 gap-6">
         <div className="col-span-3 space-y-6">
@@ -82,15 +120,15 @@ export default function NewProductPage() {
             <CardContent className="space-y-4">
               <div>
                 <label className="text-sm font-medium">Product name *</label>
-                <Input placeholder="Enter product name" className="mt-1.5" />
+                <Input value={name} onChange={e => setName(e.target.value)} placeholder="Enter product name" className="mt-1.5" />
               </div>
               <div>
                 <label className="text-sm font-medium">Description</label>
-                <Textarea placeholder="Describe your product..." className="mt-1.5 h-32" />
+                <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe your product..." className="mt-1.5 h-32" />
               </div>
               <div>
                 <label className="text-sm font-medium">Short description</label>
-                <Textarea placeholder="Brief summary for product cards" className="mt-1.5 h-20" />
+                <Textarea value={shortDescription} onChange={e => setShortDescription(e.target.value)} placeholder="Brief summary for product cards" className="mt-1.5 h-20" />
               </div>
             </CardContent>
           </Card>
@@ -131,14 +169,14 @@ export default function NewProductPage() {
                   <label className="text-sm font-medium">Regular price *</label>
                   <div className="mt-1.5 relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted">$</span>
-                    <Input placeholder="0.00" className="pl-7" />
+                    <Input value={price} onChange={e => setPrice(e.target.value)} placeholder="0.00" className="pl-7" />
                   </div>
                 </div>
                 <div>
                   <label className="text-sm font-medium">Sale price</label>
                   <div className="mt-1.5 relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted">$</span>
-                    <Input placeholder="0.00" className="pl-7" />
+                    <Input value={salePrice} onChange={e => setSalePrice(e.target.value)} placeholder="0.00" className="pl-7" />
                   </div>
                 </div>
               </div>
@@ -167,8 +205,8 @@ export default function NewProductPage() {
                 <div>
                   <label className="text-sm font-medium">SKU</label>
                   <div className="mt-1.5 flex gap-2">
-                    <Input placeholder="Enter SKU" />
-                    <Button variant="outline">Auto-generate</Button>
+                    <Input value={sku} onChange={e => setSku(e.target.value)} placeholder="Enter SKU" />
+                    <Button variant="outline" onClick={() => setSku(`SKU-${slugify(name)}-${Date.now().toString(36).slice(-4).toUpperCase()}`)}>Auto-generate</Button>
                   </div>
                 </div>
                 <div className="flex items-center pt-6">
@@ -183,11 +221,11 @@ export default function NewProductPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium">Stock quantity</label>
-                      <Input type="number" placeholder="0" className="mt-1.5" />
+                      <Input type="number" value={stock} onChange={e => setStock(e.target.value)} placeholder="0" className="mt-1.5" />
                     </div>
                     <div>
                       <label className="text-sm font-medium">Low stock threshold</label>
-                      <Input type="number" placeholder="5" className="mt-1.5" />
+                      <Input type="number" value={lowStockThreshold} onChange={e => setLowStockThreshold(e.target.value)} placeholder="5" className="mt-1.5" />
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -331,54 +369,32 @@ export default function NewProductPage() {
             <CardContent className="space-y-4">
               <div>
                 <label className="text-sm font-medium">Status</label>
-                <select className="mt-1.5 w-full h-10 px-3 rounded-md border border-card-border bg-white text-sm">
-                  <option>Draft</option>
-                  <option>Active</option>
-                  <option>Archived</option>
+                <select value={status} onChange={e => setStatus(e.target.value)} className="mt-1.5 w-full h-10 px-3 rounded-md border border-card-border bg-white text-sm">
+                  <option value="draft">Draft</option>
+                  <option value="active">Active</option>
+                  <option value="archived">Archived</option>
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium">Visibility</label>
-                <select className="mt-1.5 w-full h-10 px-3 rounded-md border border-card-border bg-white text-sm">
-                  <option>Public</option>
-                  <option>Hidden</option>
+                <label className="text-sm font-medium">Category</label>
+                <select value={category} onChange={e => setCategory(e.target.value)} className="mt-1.5 w-full h-10 px-3 rounded-md border border-card-border bg-white text-sm">
+                  <option value="">— None —</option>
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div className="flex gap-2 pt-2">
-                <Button variant="outline" className="flex-1">
-                  <Save className="w-4 h-4 mr-2" />
+                <Button variant="outline" className="flex-1" onClick={() => save('draft')} disabled={saving}>
+                  {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                   Save draft
                 </Button>
-                <Button className="flex-1">
-                  <Check className="w-4 h-4 mr-2" />
+                <Button className="flex-1" onClick={() => save('active')} disabled={saving}>
+                  {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
                   Publish
                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Category</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {mockCategories.map(cat => (
-                <div key={cat.id} className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Checkbox id={cat.id} />
-                    <label htmlFor={cat.id} className="text-sm">{cat.name}</label>
-                  </div>
-                  {cat.children && cat.children.map(child => (
-                    <div key={child} className="flex items-center gap-2 ml-6">
-                      <Checkbox id={`${cat.id}-${child}`} />
-                      <label htmlFor={`${cat.id}-${child}`} className="text-sm text-text-secondary">{child}</label>
-                    </div>
-                  ))}
-                </div>
-              ))}
-              <button className="text-sm text-brand-indigo mt-2">+ Add new category</button>
-            </CardContent>
-          </Card>
 
           <Card>
             <CardHeader>

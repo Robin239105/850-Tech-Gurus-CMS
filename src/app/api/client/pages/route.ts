@@ -37,3 +37,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: String(err) }, { status: 500 })
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  const session = await getClientSession()
+  if (!session) return NextResponse.json({ message: 'Unauthorised' }, { status: 401 })
+  try {
+    const { id, title, slug, status, content } = await req.json()
+    const db = getDb()
+    const rows = await db`
+      UPDATE client_pages SET
+        title = COALESCE(${title ?? null}, title),
+        slug = COALESCE(${slug ?? null}, slug),
+        status = COALESCE(${status ?? null}, status),
+        content = COALESCE(${content != null ? JSON.stringify(content) : null}, content),
+        updated_at = NOW()
+      WHERE id = ${id} AND client_id = ${session.clientId} RETURNING *
+    `
+    return NextResponse.json(rows[0])
+  } catch (err) {
+    return NextResponse.json({ message: String(err) }, { status: 500 })
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  const session = await getClientSession()
+  if (!session) return NextResponse.json({ message: 'Unauthorised' }, { status: 401 })
+  try {
+    const { id } = await req.json()
+    const db = getDb()
+    await db`DELETE FROM client_pages WHERE id = ${id} AND client_id = ${session.clientId}`
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    return NextResponse.json({ message: String(err) }, { status: 500 })
+  }
+}
