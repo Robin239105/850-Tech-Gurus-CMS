@@ -173,6 +173,46 @@ export default function SystemHealthPage() {
 
       <Card className="p-5">
         <div className="flex items-center justify-between mb-4">
+          <h2 className="text-h3">Database Management</h2>
+          <Badge variant="blue">Neon PostgreSQL</Badge>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-4 border border-card-border rounded-lg bg-gray-50">
+            <h3 className="font-semibold text-text-primary mb-1">Initialize Schema</h3>
+            <p className="text-xs text-text-muted mb-3">Creates all required tables if they don't exist.</p>
+            <Button 
+              size="sm" 
+              className="w-full"
+              onClick={async () => {
+                const res = await fetch('/api/admin/migrate', { method: 'POST' })
+                const data = await res.json()
+                alert(data.message)
+              }}
+            >
+              Run Migration
+            </Button>
+          </div>
+          <div className="p-4 border border-card-border rounded-lg bg-gray-50">
+            <h3 className="font-semibold text-text-primary mb-1">Seed Real Data</h3>
+            <p className="text-xs text-text-muted mb-3">Populates the database with initial sample data.</p>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="w-full"
+              onClick={async () => {
+                const res = await fetch('/api/admin/seed', { method: 'POST' })
+                const data = await res.json()
+                alert(data.message)
+              }}
+            >
+              Seed Database
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-5">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-h3">Incident History</h2>
           <Badge variant="gray">Last 30 days</Badge>
         </div>
