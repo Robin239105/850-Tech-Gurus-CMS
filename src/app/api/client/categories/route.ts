@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
 import { getClientSession } from '@/lib/client-auth'
-
-const sql = neon(process.env.DATABASE_URL!)
+import { getDb } from '@/lib/db'
 
 export async function GET() {
   const session = await getClientSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const rows = await sql`SELECT * FROM categories WHERE client_id = ${session.clientId} ORDER BY parent_id NULLS FIRST, name ASC`
+  const db = getDb()
+  const rows = await db`SELECT * FROM categories WHERE client_id = ${session.clientId} ORDER BY parent_id NULLS FIRST, name ASC`
   return NextResponse.json(rows)
 }
 
@@ -16,7 +15,8 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { name, slug, parent_id, description } = await req.json()
   if (!name) return NextResponse.json({ error: 'Name required' }, { status: 400 })
-  const rows = await sql`
+  const db = getDb()
+  const rows = await db`
     INSERT INTO categories (client_id, name, slug, parent_id, description, created_at)
     VALUES (${session.clientId}, ${name}, ${slug || name.toLowerCase().replace(/\s+/g, '-')}, ${parent_id || null}, ${description || null}, NOW())
     RETURNING *`
@@ -27,7 +27,8 @@ export async function PATCH(req: NextRequest) {
   const session = await getClientSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id, name, slug } = await req.json()
-  await sql`UPDATE categories SET name = ${name}, slug = ${slug || name.toLowerCase().replace(/\s+/g, '-')} WHERE id = ${id} AND client_id = ${session.clientId}`
+  const db = getDb()
+  await db`UPDATE categories SET name = ${name}, slug = ${slug || name.toLowerCase().replace(/\s+/g, '-')} WHERE id = ${id} AND client_id = ${session.clientId}`
   return NextResponse.json({ ok: true })
 }
 
@@ -35,6 +36,7 @@ export async function DELETE(req: NextRequest) {
   const session = await getClientSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await req.json()
-  await sql`DELETE FROM categories WHERE id = ${id} AND client_id = ${session.clientId}`
+  const db = getDb()
+  await db`DELETE FROM categories WHERE id = ${id} AND client_id = ${session.clientId}`
   return NextResponse.json({ ok: true })
 }

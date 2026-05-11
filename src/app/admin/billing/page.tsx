@@ -109,7 +109,7 @@ export default function BillingPage() {
               </thead>
               <tbody>
                 {clients.map(c => {
-                  const planDef = PLANS.find(p => p.name === c.plan)
+                  const planDef = plans.find(p => p.name === c.plan)
                   return (
                     <tr key={String(c.id)}>
                       <td className="font-medium text-text-primary">

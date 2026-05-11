@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
 import { getClientSession } from '@/lib/client-auth'
-
-const sql = neon(process.env.DATABASE_URL!)
+import { getDb } from '@/lib/db'
 
 export async function GET() {
   const session = await getClientSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const rows = await sql`SELECT * FROM discounts WHERE client_id = ${session.clientId} ORDER BY created_at DESC`
+  const db = getDb()
+  const rows = await db`SELECT * FROM discounts WHERE client_id = ${session.clientId} ORDER BY created_at DESC`
   return NextResponse.json(rows)
 }
 
@@ -16,7 +15,8 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { code, type, amount, min_order, usage_limit, expiry_date, active } = await req.json()
   if (!code || !type || amount === undefined) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
-  const rows = await sql`
+  const db = getDb()
+  const rows = await db`
     INSERT INTO discounts (client_id, code, type, amount, min_order, usage_limit, used_count, expiry_date, active, created_at)
     VALUES (${session.clientId}, ${code.toUpperCase()}, ${type}, ${amount}, ${min_order || 0}, ${usage_limit || null}, 0, ${expiry_date || null}, ${active !== false}, NOW())
     RETURNING *`
@@ -27,7 +27,8 @@ export async function PATCH(req: NextRequest) {
   const session = await getClientSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id, active, code, type, amount, min_order, usage_limit, expiry_date } = await req.json()
-  await sql`
+  const db = getDb()
+  await db`
     UPDATE discounts SET
       active = COALESCE(${active ?? null}, active),
       code = COALESCE(${code ?? null}, code),
@@ -44,6 +45,7 @@ export async function DELETE(req: NextRequest) {
   const session = await getClientSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await req.json()
-  await sql`DELETE FROM discounts WHERE id = ${id} AND client_id = ${session.clientId}`
+  const db = getDb()
+  await db`DELETE FROM discounts WHERE id = ${id} AND client_id = ${session.clientId}`
   return NextResponse.json({ ok: true })
 }
