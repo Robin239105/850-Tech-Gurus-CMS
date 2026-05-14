@@ -26,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         status = COALESCE(${newStatus ?? null}, status),
         last_active = NOW()
       WHERE id = ${id}
-      
+      RETURNING *
     `
     if (!rows.length) return NextResponse.json({ message: 'Client not found' }, { status: 404 })
     return NextResponse.json({ success: true, client: rows[0] })
