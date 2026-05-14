@@ -66,7 +66,6 @@ const navItems: NavSection[] = [
   {
     section: 'Content Oversight',
     items: [
-      { name: 'All Pages', href: '/admin/pages', icon: FileText },
       { name: 'All Media', href: '/admin/media', icon: ImageIcon },
       { name: 'All Form Submissions', href: '/admin/forms', icon: FileText },
       { name: 'All Orders', href: '/admin/orders', icon: ShoppingCart },
