@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
     for (const [key, value] of Object.entries(body)) {
       await db`
         INSERT INTO client_settings (client_id, key, value)
-        VALUES (${clientId}, ${key}, ${value})
-        ON CONFLICT (client_id, key) DO UPDATE SET value = ${value}, updated_at = NOW()
+        VALUES (${clientId}, ${key}, ${JSON.stringify(value)}::jsonb)
+        ON CONFLICT (client_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
       `
     }
     return NextResponse.json({ success: true })

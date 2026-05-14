@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     const id = crypto.randomUUID();
     await db`
       INSERT INTO client_pages (id, client_id, title, slug, status, content)
-      VALUES (${id}, ${session.clientId}, ${title}, ${slug}, ${status ?? 'draft'}, ${JSON.stringify(content ?? {})})`;
+      VALUES (${id}, ${session.clientId}, ${title}, ${slug}, ${status ?? 'draft'}, ${JSON.stringify(content ?? {})}::jsonb)`;
     const rows = await db`SELECT * FROM client_pages WHERE id = ${id}`
     return NextResponse.json(rows[0])
   } catch (err) {
@@ -42,7 +42,7 @@ export async function PATCH(req: NextRequest) {
         title = COALESCE(${title ?? null}, title),
         slug = COALESCE(${slug ?? null}, slug),
         status = COALESCE(${status ?? null}, status),
-        content = COALESCE(${content != null ? JSON.stringify(content) : null}, content),
+        content = COALESCE(${content != null ? JSON.stringify(content) : null}::jsonb, content),
         updated_at = NOW()
       WHERE id = ${id} AND client_id = ${session.clientId} `;
     const rows = await db`SELECT * FROM client_pages WHERE id = ${id}`

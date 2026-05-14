@@ -63,11 +63,11 @@ export async function POST(
         ${orderNumber},
         ${customer.name || 'Guest'},
         ${customer.email || ''},
-        ${JSON.stringify(items)},
+        ${JSON.stringify(items)}::jsonb,
         ${total},
         ${paymentStatus || 'pending'},
         'pending',
-        ${JSON.stringify(shippingAddress || {})},
+        ${JSON.stringify(shippingAddress || {})}::jsonb,
         ${notes || null},
         ${referer}
       )`;

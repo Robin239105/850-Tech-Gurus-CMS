@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     for (const [key, value] of Object.entries(body)) {
       await db`
         INSERT INTO platform_settings (key, value, updated_at)
-        VALUES (${key}, ${String(value)}, NOW())
+        VALUES (${key}, ${JSON.stringify(value)}::jsonb, NOW())
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
       `
     }

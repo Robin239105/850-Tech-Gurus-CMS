@@ -48,7 +48,7 @@ export async function POST(
         ${submissionId},
         ${clientId},
         ${formName},
-        ${JSON.stringify(fields)},
+        ${JSON.stringify(fields)}::jsonb,
         'new',
         ${ip},
         ${referer},

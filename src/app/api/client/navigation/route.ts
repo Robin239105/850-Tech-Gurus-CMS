@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   const id = crypto.randomUUID();
     await db`
       INSERT INTO navigation_menus (id, client_id, menu_name, items, created_at, updated_at)
-      VALUES (${id}, ${session.clientId}, ${menu_name || 'Main Menu'}, ${JSON.stringify(items || [])}, NOW(), NOW())
+      VALUES (${id}, ${session.clientId}, ${menu_name || 'Main Menu'}, ${JSON.stringify(items || [])}::jsonb, NOW(), NOW())
     ON CONFLICT (client_id, menu_name) DO UPDATE SET items = EXCLUDED.items, updated_at = NOW()`;
     const rows = await db`SELECT * FROM navigation_menus WHERE id = ${id}`
   return NextResponse.json(rows[0])

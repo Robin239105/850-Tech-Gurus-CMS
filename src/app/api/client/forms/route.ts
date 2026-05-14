@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   const id = crypto.randomUUID();
     await db`
       INSERT INTO contact_forms (id, client_id, name, fields, settings, created_at)
-      VALUES (${id}, ${session.clientId}, ${name}, ${JSON.stringify(fields || [])}, ${JSON.stringify(settings || {})}, NOW())`;
+      VALUES (${id}, ${session.clientId}, ${name}, ${JSON.stringify(fields || [])}::jsonb, ${JSON.stringify(settings || {})}::jsonb, NOW())`;
     const rows = await db`SELECT * FROM contact_forms WHERE id = ${id}`
   return NextResponse.json(rows[0])
 }
@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest) {
   const session = await getClientSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id, name, fields, settings } = await req.json()
-  await db`UPDATE contact_forms SET name = COALESCE(${name ?? null}, name), fields = COALESCE(${fields ? JSON.stringify(fields) : null}, fields), settings = COALESCE(${settings ? JSON.stringify(settings) : null}, settings) WHERE id = ${id} AND client_id = ${session.clientId}`
+  await db`UPDATE contact_forms SET name = COALESCE(${name ?? null}, name), fields = COALESCE(${fields ? JSON.stringify(fields) : null}::jsonb, fields), settings = COALESCE(${settings ? JSON.stringify(settings) : null}::jsonb, settings) WHERE id = ${id} AND client_id = ${session.clientId}`
   return NextResponse.json({ ok: true })
 }
 
