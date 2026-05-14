@@ -78,7 +78,7 @@ export default function LoginPage() {
       if (!res.ok) {
         setError(data.message ?? 'Invalid code. Please try again.')
       } else {
-        router.push('/admin/dashboard')
+        window.location.href = '/admin/dashboard'
       }
     } catch {
       setError('Verification failed. Please try again.')
