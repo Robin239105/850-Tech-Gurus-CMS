@@ -19,7 +19,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const body = await req.json()
     const { name, description, price, salePrice, sku, stock, category, status } = body
 
-    const rows = await sql`
+    await sql`
       UPDATE products 
       SET 
         name = ${name}, 
@@ -32,8 +32,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         status = ${status},
         updated_at = NOW()
       WHERE id = ${id}
-      RETURNING *
     `
+    const rows = await sql`SELECT * FROM products WHERE id = ${id}`
     if (rows.length === 0) return NextResponse.json({ message: 'Product not found' }, { status: 404 })
     return NextResponse.json(rows[0])
   } catch (error) {

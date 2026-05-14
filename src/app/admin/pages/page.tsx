@@ -7,10 +7,24 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { formatRelativeTime } from '@/lib/utils'
+import Link from 'next/link'
+
+type Page = {
+  id: string
+  title: string
+  slug: string
+  client_id: string
+  client_name: string
+  author: string
+  published: boolean
+  created_at: string
+  website?: string
+}
 
 export default function AllPagesPage() {
-  const [pages, setPages] = useState<any[]>([])
+  const [pages, setPages] = useState<Page[]>([])
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -24,19 +38,32 @@ export default function AllPagesPage() {
 
   useEffect(() => { load() }, [load])
 
+  const filtered = pages.filter(p =>
+    p.title?.toLowerCase().includes(search.toLowerCase()) ||
+    p.client_name?.toLowerCase().includes(search.toLowerCase()) ||
+    p.slug?.toLowerCase().includes(search.toLowerCase())
+  )
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-h1">All Pages & Posts</h1>
-          <p className="text-sm text-text-secondary mt-1">Manage content across all client websites</p>
+          <p className="text-sm text-text-secondary mt-1">
+            {pages.length} pages across all client websites
+          </p>
         </div>
       </div>
 
       <Card className="p-4">
         <div className="relative max-w-md">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-          <Input placeholder="Search content..." className="pl-9" />
+          <Input
+            placeholder="Search pages, clients..."
+            className="pl-9"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
         </div>
       </Card>
 
@@ -56,14 +83,14 @@ export default function AllPagesPage() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={6} className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto text-text-muted" /></td></tr>
-              ) : pages.length === 0 ? (
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="text-center py-12">
                     <FileText className="w-12 h-12 text-text-muted mx-auto mb-4" />
-                    <p className="text-text-muted">No pages or posts found</p>
+                    <p className="text-text-muted">{pages.length === 0 ? 'No pages or posts yet' : 'No pages match your search'}</p>
                   </td>
                 </tr>
-              ) : pages.map((page) => (
+              ) : filtered.map((page) => (
                 <tr key={page.id}>
                   <td>
                     <p className="text-sm font-medium">{page.title}</p>
@@ -79,8 +106,29 @@ export default function AllPagesPage() {
                   <td className="text-xs text-text-secondary">{formatRelativeTime(page.created_at)}</td>
                   <td>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon-sm"><Edit className="w-4 h-4" /></Button>
-                      <Button variant="ghost" size="icon-sm"><ExternalLink className="w-4 h-4" /></Button>
+                      {/* Edit — goes to client's page editor for that client */}
+                      <Link href={`/admin/clients/${page.client_id}`}>
+                        <Button variant="ghost" size="icon-sm" title="View client">
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </Link>
+                      {/* ExternalLink — opens the live page on client's website */}
+                      {page.website && (
+                        <a
+                          href={`${page.website.replace(/\/$/, '')}/${page.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Button variant="ghost" size="icon-sm" title="View live page">
+                            <ExternalLink className="w-4 h-4" />
+                          </Button>
+                        </a>
+                      )}
+                      {!page.website && (
+                        <Button variant="ghost" size="icon-sm" disabled title="Website URL not set">
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>

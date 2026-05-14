@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql as db } from '@/lib/db'
+import crypto from 'crypto'
 import { cookies } from 'next/headers'
 
-function getDb() {
-  const url = process.env.DATABASE_URL || process.env.POSTGRES_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
 
 async function requireAdmin() {
   const cookieStore = await cookies()
@@ -20,7 +16,6 @@ export async function GET(req: NextRequest) {
   const priority = searchParams.get('priority') || 'all'
 
   try {
-    const db = getDb()
     const rows = await db`
       SELECT * FROM tickets
       WHERE (${status} = 'all' OR status = ${status})
@@ -38,17 +33,15 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!await requireAdmin()) return NextResponse.json({ message: 'Unauthorised' }, { status: 401 })
   try {
-    const db = getDb()
     const body = await req.json()
     const { subject, description, client_name, priority, assigned_to } = body
     if (!subject) return NextResponse.json({ message: 'Subject is required' }, { status: 400 })
 
     const id = `tkt_${Date.now()}`
-    const rows = await db`
+    await db`
       INSERT INTO tickets (id, subject, description, client_name, priority, status, assigned_to)
-      VALUES (${id}, ${subject}, ${description || ''}, ${client_name || ''}, ${priority || 'medium'}, 'open', ${assigned_to || 'Support Team'})
-      RETURNING *
-    `
+      VALUES (${id}, ${subject}, ${description || ''}, ${client_name || ''}, ${priority || 'medium'}, 'open', ${assigned_to || 'Support Team'})`;
+    const rows = await db`SELECT * FROM tickets WHERE id = ${id}`
     return NextResponse.json(rows[0], { status: 201 })
   } catch (error) {
     return NextResponse.json({ message: 'Failed to create ticket', error: String(error) }, { status: 500 })

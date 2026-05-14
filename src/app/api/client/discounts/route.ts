@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getClientSession } from '@/lib/client-auth'
-import { getDb } from '@/lib/db'
+import { sql as db } from '@/lib/db'
 
 export async function GET() {
   const session = await getClientSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const db = getDb()
   const rows = await db`SELECT * FROM discounts WHERE client_id = ${session.clientId} ORDER BY created_at DESC`
   return NextResponse.json(rows)
 }
@@ -15,11 +14,11 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { code, type, amount, min_order, usage_limit, expiry_date, active } = await req.json()
   if (!code || !type || amount === undefined) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
-  const db = getDb()
-  const rows = await db`
-    INSERT INTO discounts (client_id, code, type, amount, min_order, usage_limit, used_count, expiry_date, active, created_at)
-    VALUES (${session.clientId}, ${code.toUpperCase()}, ${type}, ${amount}, ${min_order || 0}, ${usage_limit || null}, 0, ${expiry_date || null}, ${active !== false}, NOW())
-    RETURNING *`
+  const id = crypto.randomUUID();
+    await db`
+      INSERT INTO discounts (id, client_id, code, type, amount, min_order, usage_limit, used_count, expiry_date, active, created_at)
+      VALUES (${id}, ${session.clientId}, ${code.toUpperCase()}, ${type}, ${amount}, ${min_order || 0}, ${usage_limit || null}, 0, ${expiry_date || null}, ${active !== false}, NOW())`;
+    const rows = await db`SELECT * FROM discounts WHERE id = ${id}`
   return NextResponse.json(rows[0])
 }
 
@@ -27,7 +26,6 @@ export async function PATCH(req: NextRequest) {
   const session = await getClientSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id, active, code, type, amount, min_order, usage_limit, expiry_date } = await req.json()
-  const db = getDb()
   await db`
     UPDATE discounts SET
       active = COALESCE(${active ?? null}, active),
@@ -45,7 +43,6 @@ export async function DELETE(req: NextRequest) {
   const session = await getClientSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await req.json()
-  const db = getDb()
   await db`DELETE FROM discounts WHERE id = ${id} AND client_id = ${session.clientId}`
   return NextResponse.json({ ok: true })
 }

@@ -12,17 +12,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 
-const plans = [
-  { name: 'Starter', price: 29, recommended: false, features: ['5 Pages', '5 GB Storage', 'Basic Support', 'SSL Certificate'] },
-  { name: 'Pro', price: 79, recommended: true, features: ['25 Pages', '25 GB Storage', 'Priority Support', 'Custom Domain', 'Analytics'] },
-  { name: 'Business', price: 149, recommended: false, features: ['100 Pages', '100 GB Storage', 'Dedicated Support', 'White Label', 'API Access'] },
-  { name: 'Enterprise', price: 299, recommended: false, features: ['Unlimited Pages', '500 GB Storage', '24/7 Support', 'White Label', 'API Access', 'SLA'] },
-]
-
 const steps = [
   { id: 1, name: 'Client Information', icon: Building },
-  { id: 2, name: 'Plan & Features', icon: FileText },
-  { id: 3, name: 'Review & Create', icon: CheckCircle },
+  { id: 2, name: 'Review & Create', icon: CheckCircle },
 ]
 
 export default function NewClientPage() {
@@ -41,26 +33,16 @@ export default function NewClientPage() {
     notes: '',
   })
 
-  const [selectedPlan, setSelectedPlan] = useState('Pro')
-  const [features, setFeatures] = useState({
-    customDomain: true,
-    sslCertificate: true,
-    prioritySupport: false,
-    whiteLabel: false,
-    apiAccess: false,
-    teamCollaboration: false,
-  })
+
 
   const updateFormData = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value })
   }
 
-  const toggleFeature = (feature: string) => {
-    setFeatures({ ...features, [feature]: !features[feature as keyof typeof features] })
-  }
+
 
   const handleNext = () => {
-    if (currentStep < 3) {
+    if (currentStep < 2) {
       setCurrentStep(currentStep + 1)
     }
   }
@@ -85,7 +67,6 @@ export default function NewClientPage() {
           website: formData.website,
           category: formData.category,
           notes: formData.notes,
-          plan: selectedPlan,
           status: 'pending',
         }),
       })
@@ -98,7 +79,6 @@ export default function NewClientPage() {
     }
   }
 
-  const selectedPlanData = plans.find(p => p.name === selectedPlan)
 
   if (isComplete) {
     return (
@@ -252,67 +232,6 @@ export default function NewClientPage() {
       )}
 
       {currentStep === 2 && (
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-h3 mb-6">Select a Plan</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {plans.map((plan) => (
-              <Card
-                key={plan.name}
-                className={`p-5 cursor-pointer transition-all ${
-                  selectedPlan === plan.name
-                    ? 'border-brand-indigo border-2 shadow-md'
-                    : 'hover:border-gray-300'
-                }`}
-                onClick={() => setSelectedPlan(plan.name)}
-              >
-                {plan.recommended && (
-                  <Badge className="badge-green mb-3">Recommended</Badge>
-                )}
-                <h3 className="text-lg font-semibold text-text-primary">{plan.name}</h3>
-                <p className="text-3xl font-bold text-brand-indigo mt-2">
-                  ${plan.price}
-                  <span className="text-sm font-normal text-text-muted">/mo</span>
-                </p>
-                <ul className="mt-4 space-y-2">
-                  {plan.features.slice(0, 4).map((feature) => (
-                    <li key={feature} className="text-xs text-text-secondary flex items-center gap-2">
-                      <Check className="w-3 h-3 text-status-success" />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            ))}
-          </div>
-
-          <Card className="p-6">
-            <h3 className="text-h3 mb-4">Additional Features</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {[
-                { key: 'customDomain', label: 'Custom Domain' },
-                { key: 'sslCertificate', label: 'SSL Certificate' },
-                { key: 'prioritySupport', label: 'Priority Support' },
-                { key: 'whiteLabel', label: 'White Label' },
-                { key: 'apiAccess', label: 'API Access' },
-                { key: 'teamCollaboration', label: 'Team Collaboration' },
-              ].map((feature) => (
-                <div key={feature.key} className="flex items-center gap-3">
-                  <Checkbox
-                    id={feature.key}
-                    checked={features[feature.key as keyof typeof features]}
-                    onCheckedChange={() => toggleFeature(feature.key)}
-                  />
-                  <Label htmlFor={feature.key} className="cursor-pointer">
-                    {feature.label}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {currentStep === 3 && (
         <Card className="p-6 max-w-2xl mx-auto">
           <h2 className="text-h3 mb-6">Review & Create</h2>
 
@@ -343,18 +262,6 @@ export default function NewClientPage() {
               </div>
             </div>
 
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h3 className="text-sm font-semibold text-text-primary mb-3">Plan & Features</h3>
-              <div className="flex items-center gap-4 mb-3">
-                <Badge className="badge-indigo">{selectedPlan}</Badge>
-                <span className="text-lg font-bold text-brand-indigo">${selectedPlanData?.price}/mo</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(features).filter(([, value]) => value).map(([key]) => (
-                  <Badge key={key} className="badge-gray">{key.replace(/([A-Z])/g, ' $1').trim()}</Badge>
-                ))}
-              </div>
-            </div>
 
             <div className="space-y-3">
               <div className="flex items-center gap-3">
@@ -363,12 +270,7 @@ export default function NewClientPage() {
                   I confirm that the client information is accurate
                 </Label>
               </div>
-              <div className="flex items-center gap-3">
-                <Checkbox id="confirm2" />
-                <Label htmlFor="confirm2" className="text-sm">
-                  I agree to the terms of service and billing policy
-                </Label>
-              </div>
+
             </div>
           </div>
         </Card>
@@ -380,7 +282,7 @@ export default function NewClientPage() {
           Back
         </Button>
 
-        {currentStep < 3 ? (
+        {currentStep < 2 ? (
           <Button onClick={handleNext}>
             Next
             <ArrowRight className="w-4 h-4 ml-2" />

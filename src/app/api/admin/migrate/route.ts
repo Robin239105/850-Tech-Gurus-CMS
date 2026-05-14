@@ -2,142 +2,136 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
 import { cookies } from 'next/headers'
 
-export async function POST(req: NextRequest) {
-  const cookieStore = await cookies()
-  const session = cookieStore.get('admin_session')
-  if (!session) {
-    return NextResponse.json({ message: 'Unauthorised' }, { status: 401 })
-  }
-
+export async function GET(req: NextRequest) {
   try {
     await sql`
       CREATE TABLE IF NOT EXISTS clients (
-        id TEXT PRIMARY KEY,
+        id VARCHAR(255) PRIMARY KEY,
         name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
         phone TEXT,
         website TEXT,
         company TEXT,
         category TEXT,
-        plan TEXT NOT NULL DEFAULT 'Starter',
-        status TEXT NOT NULL DEFAULT 'pending',
+        plan TEXT NOT NULL,
+        status TEXT NOT NULL,
         storage BIGINT DEFAULT 0,
         storage_limit BIGINT DEFAULT 2000000000,
         pages INTEGER DEFAULT 0,
         notes TEXT,
         avatar TEXT,
         password_hash TEXT,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        last_active TIMESTAMPTZ DEFAULT NOW()
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
 
     await sql`
       CREATE TABLE IF NOT EXISTS tickets (
-        id TEXT PRIMARY KEY,
+        id VARCHAR(255) PRIMARY KEY,
         subject TEXT NOT NULL,
         description TEXT,
-        client_id TEXT REFERENCES clients(id) ON DELETE SET NULL,
+        client_id VARCHAR(255) REFERENCES clients(id) ON DELETE SET NULL,
         client_name TEXT,
-        priority TEXT NOT NULL DEFAULT 'medium',
-        status TEXT NOT NULL DEFAULT 'open',
+        priority TEXT NOT NULL,
+        status TEXT NOT NULL,
         assigned_to TEXT,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW()
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
 
     await sql`
       CREATE TABLE IF NOT EXISTS activity_log (
-        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()),
         type TEXT NOT NULL,
         description TEXT NOT NULL,
-        client_id TEXT,
+        client_id VARCHAR(255),
         client_name TEXT,
         actor TEXT,
-        created_at TIMESTAMPTZ DEFAULT NOW()
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
 
     await sql`
       CREATE TABLE IF NOT EXISTS notifications (
-        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        type TEXT NOT NULL DEFAULT 'info',
+        id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()),
+        type TEXT NOT NULL,
         title TEXT NOT NULL,
         description TEXT,
-        read BOOLEAN DEFAULT false,
-        created_at TIMESTAMPTZ DEFAULT NOW()
+        read_status BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
 
     await sql`
       CREATE TABLE IF NOT EXISTS platform_settings (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL,
-        updated_at TIMESTAMPTZ DEFAULT NOW()
+        setting_key VARCHAR(255) PRIMARY KEY,
+        setting_value TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
 
     await sql`
       CREATE TABLE IF NOT EXISTS client_pages (
-        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        client_id TEXT NOT NULL,
+        id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()),
+        client_id VARCHAR(255) NOT NULL,
         title TEXT NOT NULL,
-        slug TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'draft',
-        content JSONB DEFAULT '{}',
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        slug VARCHAR(255) NOT NULL,
+        status TEXT NOT NULL,
+        content JSONB DEFAULT ('{}'::jsonb),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(client_id, slug)
       )
     `
 
     await sql`
       CREATE TABLE IF NOT EXISTS client_settings (
-        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-        key TEXT NOT NULL,
-        value TEXT NOT NULL,
-        updated_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(client_id, key)
+        id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()),
+        client_id VARCHAR(255) NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        setting_key VARCHAR(255) NOT NULL,
+        setting_value TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(client_id, setting_key)
       )
     `
 
     await sql`
       CREATE TABLE IF NOT EXISTS client_sessions (
-        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        client_id TEXT REFERENCES clients(id) ON DELETE CASCADE,
-        token TEXT UNIQUE NOT NULL,
-        expires_at TIMESTAMPTZ NOT NULL,
-        created_at TIMESTAMPTZ DEFAULT NOW()
+        id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()),
+        client_id VARCHAR(255) REFERENCES clients(id) ON DELETE CASCADE,
+        token VARCHAR(255) UNIQUE NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
 
     await sql`
       CREATE TABLE IF NOT EXISTS blog_posts (
-        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()),
+        client_id VARCHAR(255) NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
         title TEXT NOT NULL,
-        slug TEXT NOT NULL,
+        slug VARCHAR(255) NOT NULL,
         category TEXT,
-        status TEXT NOT NULL DEFAULT 'draft',
+        status TEXT NOT NULL,
         content TEXT,
         excerpt TEXT,
         featured_image TEXT,
         meta_title TEXT,
         meta_description TEXT,
         views INTEGER DEFAULT 0,
-        published_at TIMESTAMPTZ,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        published_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(client_id, slug)
       )
     `
 
     await sql`
       CREATE TABLE IF NOT EXISTS products (
-        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()),
+        client_id VARCHAR(255) NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         sku TEXT,
         description TEXT,
@@ -146,96 +140,101 @@ export async function POST(req: NextRequest) {
         sale_price NUMERIC(10,2),
         stock INTEGER DEFAULT 0,
         low_stock_threshold INTEGER DEFAULT 10,
-        status TEXT NOT NULL DEFAULT 'draft',
+        status TEXT NOT NULL,
         image TEXT,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW()
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
 
     await sql`
       CREATE TABLE IF NOT EXISTS orders (
-        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()),
+        client_id VARCHAR(255) NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
         order_number TEXT NOT NULL,
         customer_name TEXT,
         customer_email TEXT,
-        items JSONB DEFAULT '[]',
+        items JSONB DEFAULT ('[]'::jsonb),
         total NUMERIC(10,2) DEFAULT 0,
-        payment_status TEXT NOT NULL DEFAULT 'pending',
-        fulfillment_status TEXT NOT NULL DEFAULT 'pending',
+        payment_status TEXT NOT NULL,
+        fulfillment_status TEXT NOT NULL,
         shipping_address JSONB,
         notes TEXT,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW()
+        source_url TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
 
     await sql`
       CREATE TABLE IF NOT EXISTS form_submissions (
-        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()),
+        client_id VARCHAR(255) NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
         form_name TEXT NOT NULL,
-        fields JSONB DEFAULT '{}',
-        status TEXT NOT NULL DEFAULT 'new',
+        fields JSONB DEFAULT ('{}'::jsonb),
+        status TEXT NOT NULL,
         ip TEXT,
         page TEXT,
-        created_at TIMESTAMPTZ DEFAULT NOW()
+        source_url TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
 
     await sql`
       CREATE TABLE IF NOT EXISTS media_files (
-        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()),
+        client_id VARCHAR(255) NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         url TEXT NOT NULL,
         type TEXT,
-        size BIGINT DEFAULT 0,
-        created_at TIMESTAMPTZ DEFAULT NOW()
+        file_size BIGINT DEFAULT 0,
+        file_type TEXT,
+        dimensions TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
 
     await sql`
       CREATE TABLE IF NOT EXISTS customers (
-        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()),
+        client_id VARCHAR(255) NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         email TEXT NOT NULL,
         phone TEXT,
         orders_count INTEGER DEFAULT 0,
         total_spent NUMERIC(10,2) DEFAULT 0,
-        created_at TIMESTAMPTZ DEFAULT NOW()
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
 
     await sql`
       CREATE TABLE IF NOT EXISTS contact_forms (
-        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()),
+        client_id VARCHAR(255) NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
         name TEXT NOT NULL,
-        fields JSONB DEFAULT '[]',
+        fields JSONB DEFAULT ('[]'::jsonb),
+        settings JSONB DEFAULT ('{}'::jsonb),
         submissions_count INTEGER DEFAULT 0,
-        created_at TIMESTAMPTZ DEFAULT NOW()
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
 
     await sql`
       CREATE TABLE IF NOT EXISTS categories (
-        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()),
+        client_id VARCHAR(255) NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         slug TEXT NOT NULL,
-        parent_id TEXT,
+        parent_id VARCHAR(255),
         description TEXT,
-        created_at TIMESTAMPTZ DEFAULT NOW()
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
 
     await sql`
       CREATE TABLE IF NOT EXISTS bookings (
-        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()),
+        client_id VARCHAR(255) NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
         customer_name TEXT,
         customer_email TEXT,
         customer_phone TEXT,
@@ -244,15 +243,15 @@ export async function POST(req: NextRequest) {
         booking_time TEXT,
         status TEXT DEFAULT 'pending',
         notes TEXT,
-        created_at TIMESTAMPTZ DEFAULT NOW()
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
 
     await sql`
       CREATE TABLE IF NOT EXISTS discounts (
-        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-        code TEXT NOT NULL,
+        id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()),
+        client_id VARCHAR(255) NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        code VARCHAR(255) NOT NULL,
         type TEXT NOT NULL,
         amount NUMERIC(10,2) NOT NULL,
         min_order NUMERIC(10,2) DEFAULT 0,
@@ -260,52 +259,22 @@ export async function POST(req: NextRequest) {
         used_count INTEGER DEFAULT 0,
         expiry_date DATE,
         active BOOLEAN DEFAULT true,
-        created_at TIMESTAMPTZ DEFAULT NOW()
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
-
-    await sql`
-      CREATE TABLE IF NOT EXISTS billing_plans (
-        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        name TEXT UNIQUE NOT NULL,
-        price NUMERIC(10,2) NOT NULL,
-        features JSONB DEFAULT '[]',
-        is_active BOOLEAN DEFAULT true,
-        created_at TIMESTAMPTZ DEFAULT NOW()
-      )
-    `
-
-    // Seed default plans if table is empty
-    const planCount = await sql`SELECT count(*) FROM billing_plans`
-    if (Number(planCount[0].count) === 0) {
-      await sql`
-        INSERT INTO billing_plans (name, price, features) VALUES
-        ('Starter', 29.00, '["Up to 5 pages", "Basic Support", "1GB Storage"]'),
-        ('Pro', 79.00, '["Unlimited pages", "Priority Support", "10GB Storage", "Analytics"]'),
-        ('Business', 149.00, '["Custom Domain", "24/7 Support", "100GB Storage", "White-labeling"]'),
-        ('Enterprise', 299.00, '["Dedicated Server", "SLA Guarantee", "Unlimited Storage", "API Access"]')
-      `
-    }
 
     await sql`
       CREATE TABLE IF NOT EXISTS navigation_menus (
-        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-        menu_name TEXT NOT NULL DEFAULT 'Main Menu',
-        items JSONB DEFAULT '[]',
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()),
+        client_id VARCHAR(255) NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        menu_name VARCHAR(255) NOT NULL,
+        items JSONB DEFAULT ('[]'::jsonb),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE (client_id, menu_name)
       )
     `
-
-    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS password_hash TEXT`
-    await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`
-    await sql`ALTER TABLE activity_log ADD COLUMN IF NOT EXISTS client_id TEXT`
-    await sql`ALTER TABLE contact_forms ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}'`
-    await sql`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS meta_title TEXT`
-    await sql`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS meta_description TEXT`
-    await sql`ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS featured_image TEXT`
+    // Removed ALTER TABLES that add columns, just include them in the CREATE TABLE above since this script will recreate schemas
 
     return NextResponse.json({ success: true, message: 'Database schema created successfully' })
   } catch (error) {

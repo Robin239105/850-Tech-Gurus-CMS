@@ -22,13 +22,11 @@ const tabs = [
   { id: 'forms', label: 'Forms', icon: FormInput },
   { id: 'settings', label: 'Settings', icon: Settings },
   { id: 'activity', label: 'Activity Log', icon: Clock },
-  { id: 'billing', label: 'Billing', icon: CreditCard },
 ]
 
 type Client = Record<string, unknown>
 type Activity = Record<string, unknown>
 
-const PLANS = ['Starter', 'Pro', 'Business', 'Enterprise']
 
 export default function ClientDetailPage() {
   const params = useParams()
@@ -69,21 +67,6 @@ export default function ClientDetailPage() {
     setTimeout(() => setActionMsg(''), 3000)
   }
 
-  const setPlan = async (plan: string) => {
-    setSaving(true)
-    const res = await fetch(`/api/admin/clients/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan }),
-    })
-    if (res.ok) {
-      const updated = await res.json()
-      setClient(updated)
-      setActionMsg('Plan updated')
-    }
-    setSaving(false)
-    setTimeout(() => setActionMsg(''), 3000)
-  }
 
   const handleSetPassword = async (activate: boolean) => {
     setPwError('')
@@ -200,13 +183,7 @@ export default function ClientDetailPage() {
               ) : <span className="text-sm text-text-muted">—</span>}
             </div>
           </div>
-          <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-            <CreditCard className="w-5 h-5 text-text-muted" />
-            <div>
-              <p className="text-xs text-text-muted">Plan</p>
-              <Badge className="badge-indigo mt-1">{String(client.plan ?? '—')}</Badge>
-            </div>
-          </div>
+
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -385,38 +362,7 @@ export default function ClientDetailPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="billing" className="mt-6">
-          <div className="space-y-4">
-            <Card className="p-5">
-              <h3 className="text-h3 mb-4">Current Plan</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {PLANS.map(plan => (
-                  <button
-                    key={plan}
-                    onClick={() => setPlan(plan)}
-                    disabled={saving}
-                    className={`p-4 rounded-lg border-2 text-left transition-all ${
-                      client.plan === plan
-                        ? 'border-brand-indigo bg-brand-indigo/5'
-                        : 'border-card-border hover:border-brand-indigo/50'
-                    }`}
-                  >
-                    <p className="font-semibold text-text-primary">{plan}</p>
-                    <p className="text-xs text-text-muted mt-1">
-                      {plan === 'Starter' ? '$29/mo' : plan === 'Pro' ? '$79/mo' : plan === 'Business' ? '$149/mo' : '$299/mo'}
-                    </p>
-                    {client.plan === plan && <Badge className="badge-indigo mt-2 text-[10px]">Current</Badge>}
-                  </button>
-                ))}
-              </div>
-              {actionMsg && <p className="text-sm text-status-success mt-3">{actionMsg}</p>}
-            </Card>
-            <Card className="p-5">
-              <h3 className="text-h3 mb-2">Invoices</h3>
-              <p className="text-sm text-text-muted">Invoice management coming soon.</p>
-            </Card>
-          </div>
-        </TabsContent>
+
       </Tabs>
     </div>
   )

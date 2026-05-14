@@ -22,21 +22,18 @@ export default function ClientsPage() {
   const [selectedClients, setSelectedClients] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [planFilter, setPlanFilter] = useState('all')
-
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
       if (searchQuery) params.set('search', searchQuery)
       if (statusFilter !== 'all') params.set('status', statusFilter)
-      if (planFilter !== 'all') params.set('plan', planFilter)
       const res = await fetch(`/api/admin/clients?${params}`)
       if (res.ok) setClients(await res.json())
     } finally {
       setLoading(false)
     }
-  }, [searchQuery, statusFilter, planFilter])
+  }, [searchQuery, statusFilter])
 
   useEffect(() => { load() }, [load])
 
@@ -111,18 +108,7 @@ export default function ClientsPage() {
               </SelectContent>
             </Select>
 
-            <Select value={planFilter} onValueChange={setPlanFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Filter by plan" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Plans</SelectItem>
-                <SelectItem value="Starter">Starter</SelectItem>
-                <SelectItem value="Pro">Pro</SelectItem>
-                <SelectItem value="Business">Business</SelectItem>
-                <SelectItem value="Enterprise">Enterprise</SelectItem>
-              </SelectContent>
-            </Select>
+
 
             <div className="flex items-center border border-card-border rounded-md">
               <Button
@@ -177,7 +163,6 @@ export default function ClientsPage() {
                   </th>
                   <th>Client</th>
                   <th>Website</th>
-                  <th>Plan</th>
                   <th>Status</th>
                   <th>Storage</th>
                   <th>Pages</th>
@@ -220,7 +205,6 @@ export default function ClientsPage() {
                           </a>
                         ) : '—'}
                       </td>
-                      <td><Badge variant="indigo">{String(client.plan)}</Badge></td>
                       <td>
                         <Badge className={client.status === 'active' ? 'badge-green' : client.status === 'pending' ? 'badge-amber' : client.status === 'inactive' ? 'badge-gray' : 'badge-red'}>
                           {String(client.status)}
@@ -275,10 +259,7 @@ export default function ClientsPage() {
                     <span className="text-text-secondary">Status</span>
                     <Badge className={c.status === 'active' ? 'badge-green' : c.status === 'pending' ? 'badge-amber' : 'badge-gray'}>{String(c.status)}</Badge>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-text-secondary">Plan</span>
-                    <Badge variant="indigo">{String(c.plan)}</Badge>
-                  </div>
+
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-text-secondary">Storage</span>
                     <span className="text-text-primary font-medium">{storagePercent}%</span>

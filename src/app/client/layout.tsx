@@ -27,6 +27,7 @@ import {
   Layers,
   Eye,
   LogOut,
+  Zap,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -79,6 +80,7 @@ const navigationItems = [
   {
     title: 'Settings',
     items: [
+      { name: 'Connect Website', href: '/client/connect', icon: Zap },
       { name: 'Site Settings', href: '/client/settings', icon: Settings },
       { name: 'My Profile', href: '/client/profile', icon: User },
     ],

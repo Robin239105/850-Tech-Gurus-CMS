@@ -60,7 +60,6 @@ const navItems: NavSection[] = [
     items: [
       { name: 'All Clients', href: '/admin/clients', icon: Users },
       { name: 'Add New Client', href: '/admin/clients/new', icon: Users },
-      { name: 'Billing & Plans', href: '/admin/billing', icon: Heart },
       { name: 'Permissions & Roles', href: '/admin/permissions', icon: Settings },
     ],
   },

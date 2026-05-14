@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getClientSession } from '@/lib/client-auth'
-import { getDb } from '@/lib/db'
+import { sql as db } from '@/lib/db'
 import bcrypt from 'bcryptjs'
 
 export async function PATCH(req: NextRequest) {
@@ -10,13 +10,11 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json()
 
   if (body.name !== undefined) {
-    const db = getDb()
     await db`UPDATE clients SET name = ${body.name}, updated_at = NOW() WHERE id = ${session.clientId}`
     return NextResponse.json({ ok: true })
   }
 
   if (body.currentPassword && body.newPassword) {
-    const db = getDb()
     const rows = await db`SELECT password_hash FROM clients WHERE id = ${session.clientId}`
     if (!rows[0]) return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     const valid = await bcrypt.compare(body.currentPassword, rows[0].password_hash)

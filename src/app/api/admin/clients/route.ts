@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql as db } from '@/lib/db'
+import crypto from 'crypto'
 import { cookies } from 'next/headers'
 
-function getDb() {
-  const url = process.env.DATABASE_URL || process.env.POSTGRES_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
 
 async function requireAdmin() {
   const cookieStore = await cookies()
@@ -19,15 +15,14 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const search = searchParams.get('search') || ''
   const status = searchParams.get('status') || 'all'
-  const plan = searchParams.get('plan') || 'all'
+
 
   try {
-    const db = getDb()
     const rows = await db`
       SELECT * FROM clients
-      WHERE (${search} = '' OR name ILIKE ${'%' + search + '%'} OR email ILIKE ${'%' + search + '%'})
+      WHERE (${search} = '' OR name LIKE ${'%' + search + '%'} OR email LIKE ${'%' + search + '%'})
       AND (${status} = 'all' OR status = ${status})
-      AND (${plan} = 'all' OR plan = ${plan})
+
       ORDER BY created_at DESC
     `
     return NextResponse.json(rows)
@@ -41,19 +36,16 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { name, email, phone, website, company, category, plan, notes } = body
+    const { name, email, phone, website, company, category, notes } = body
 
     if (!name || !email) {
       return NextResponse.json({ message: 'Name and email are required' }, { status: 400 })
     }
-
-    const db = getDb()
     const id = `cl_${Date.now()}`
-    const rows = await db`
+    await db`
       INSERT INTO clients (id, name, email, phone, website, company, category, plan, status, notes)
-      VALUES (${id}, ${name}, ${email}, ${phone || ''}, ${website || ''}, ${company || name}, ${category || 'General'}, ${plan || 'Starter'}, 'pending', ${notes || ''})
-      RETURNING *
-    `
+      VALUES (${id}, ${name}, ${email}, ${phone || ''}, ${website || ''}, ${company || name}, ${category || 'General'}, 'Starter', 'pending', ${notes || ''})`;
+    const rows = await db`SELECT * FROM clients WHERE id = ${id}`
 
     await db`
       INSERT INTO activity_log (type, description, client_name, actor)

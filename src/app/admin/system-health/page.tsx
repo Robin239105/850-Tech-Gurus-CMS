@@ -253,22 +253,29 @@ export default function SystemHealthPage() {
         <Card className="p-5">
           <h2 className="text-h3 mb-4">System Resources</h2>
           <div className="space-y-4">
-            {[
-              { label: 'CPU Usage', value: 45, color: 'bg-brand-indigo' },
-              { label: 'Memory', value: 62, color: 'bg-brand-cyan' },
-              { label: 'Disk I/O', value: 28, color: 'bg-status-success' },
-              { label: 'Network', value: 55, color: 'bg-status-warning' },
-            ].map((resource) => (
-              <div key={resource.label}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-text-secondary">{resource.label}</span>
-                  <span className="text-sm font-medium text-text-primary">{resource.value}%</span>
-                </div>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className={`h-full ${resource.color} rounded-full`} style={{ width: `${resource.value}%` }} />
-                </div>
+            <div className="p-4 bg-gray-50 rounded-xl text-center">
+              <p className="text-sm text-text-secondary">
+                Server resource metrics (CPU, memory, disk) are available in your
+              </p>
+              <a
+                href="https://vercel.com/dashboard"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-medium text-brand-indigo hover:underline mt-1 block"
+              >
+                Vercel Dashboard →
+              </a>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-gray-50 rounded-lg text-center">
+                <p className="text-xs text-text-muted">Platform</p>
+                <p className="text-sm font-semibold text-text-primary mt-1">Vercel / Neon</p>
               </div>
-            ))}
+              <div className="p-3 bg-gray-50 rounded-lg text-center">
+                <p className="text-xs text-text-muted">Runtime</p>
+                <p className="text-sm font-semibold text-text-primary mt-1">Next.js 16 Edge</p>
+              </div>
+            </div>
           </div>
         </Card>
       </div>

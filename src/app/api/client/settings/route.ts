@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { neon } from '@neondatabase/serverless'
+import { sql as db } from '@/lib/db'
+import crypto from 'crypto'
 
-function getDb() {
-  const url = process.env.DATABASE_URL || process.env.POSTGRES_URL
-  if (!url) throw new Error('DATABASE_URL is not set')
-  return neon(url)
-}
 
 async function getClientId(): Promise<string | null> {
   const cookieStore = await cookies()
@@ -26,7 +22,6 @@ export async function GET() {
   if (!clientId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
-    const db = getDb()
     const rows = await db`SELECT key, value FROM client_settings WHERE client_id = ${clientId}`
     const settings = Object.fromEntries(rows.map((r) => [(r as Record<string, string>).key, (r as Record<string, string>).value]))
     return NextResponse.json(settings)
@@ -41,7 +36,6 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json() as Record<string, string>
-    const db = getDb()
     for (const [key, value] of Object.entries(body)) {
       await db`
         INSERT INTO client_settings (client_id, key, value)

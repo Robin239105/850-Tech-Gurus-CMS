@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql as db } from '@/lib/db'
+import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import { cookies } from 'next/headers'
 
-function getDb() {
-  const url = process.env.DATABASE_URL || process.env.POSTGRES_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,8 +12,6 @@ export async function POST(req: NextRequest) {
     if (!email || !password) {
       return NextResponse.json({ message: 'Email and password are required.' }, { status: 400 })
     }
-
-    const db = getDb()
     const rows = await db`SELECT * FROM clients WHERE email = ${email.toLowerCase().trim()} LIMIT 1`
 
     if (!rows.length) {

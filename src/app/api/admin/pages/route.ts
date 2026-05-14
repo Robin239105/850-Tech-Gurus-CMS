@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const rows = await sql`
-      SELECT p.*, c.name as client_name 
+      SELECT p.*, c.name as client_name, c.website
       FROM blog_posts p
       JOIN clients c ON p.client_id = c.id
       ORDER BY p.created_at DESC

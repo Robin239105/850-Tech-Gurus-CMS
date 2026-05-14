@@ -12,9 +12,11 @@ import {
 } from '@/components/ui/table'
 
 type DashboardStats = { pages: number; media: number; submissions: number; products: number }
+type ClientProfile = { website?: string; name?: string }
 
 export default function ClientDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [profile, setProfile] = useState<ClientProfile>({})
 
   useEffect(() => {
     Promise.all([
@@ -22,20 +24,22 @@ export default function ClientDashboard() {
       fetch('/api/client/media').then(r => r.ok ? r.json() : []),
       fetch('/api/client/submissions').then(r => r.ok ? r.json() : []),
       fetch('/api/client/products').then(r => r.ok ? r.json() : []),
-    ]).then(([pages, media, submissions, products]) => {
+      fetch('/api/client/me').then(r => r.ok ? r.json() : {}),
+    ]).then(([pages, media, submissions, products, me]) => {
       setStats({
         pages: Array.isArray(pages) ? pages.length : 0,
         media: Array.isArray(media) ? media.length : 0,
         submissions: Array.isArray(submissions) ? submissions.length : 0,
         products: Array.isArray(products) ? products.length : 0,
       })
+      setProfile(me as ClientProfile)
     })
   }, [])
 
   const quickActions = [
     { label: 'Add new page', icon: Plus, href: '/client/pages/new' },
     { label: 'Upload media', icon: FileInput, href: '/client/media' },
-    { label: 'View analytics', icon: TrendingUp, href: '/client/analytics' },
+    { label: 'Form submissions', icon: Inbox, href: '/client/submissions' },
     { label: 'Site settings', icon: Settings, href: '/client/settings' },
   ]
 
@@ -47,15 +51,28 @@ export default function ClientDashboard() {
           <p className="text-text-secondary mt-1">Manage your website content and settings</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="gap-2">
-            <EyeIcon className="w-4 h-4" />
-            View Live Site
-            <ExternalLink className="w-3 h-3" />
-          </Button>
-          <Button className="gap-2">
-            <Edit className="w-4 h-4" />
-            Edit Homepage
-          </Button>
+          {profile.website ? (
+            <a href={profile.website} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" className="gap-2">
+                <EyeIcon className="w-4 h-4" />
+                View Live Site
+                <ExternalLink className="w-3 h-3" />
+              </Button>
+            </a>
+          ) : (
+            <Link href="/client/settings">
+              <Button variant="outline" className="gap-2">
+                <EyeIcon className="w-4 h-4" />
+                Set Website URL
+              </Button>
+            </Link>
+          )}
+          <Link href="/client/pages">
+            <Button className="gap-2">
+              <Edit className="w-4 h-4" />
+              Manage Pages
+            </Button>
+          </Link>
         </div>
       </div>
 

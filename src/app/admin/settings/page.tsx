@@ -23,6 +23,7 @@ const tabs = [
 export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [toggles, setToggles] = useState<Record<string, boolean>>({})
   const formRef = useRef<HTMLFormElement>(null)
 
   useEffect(() => {
@@ -30,12 +31,28 @@ export default function SettingsPage() {
       .then(r => r.ok ? r.json() : {})
       .then((s: Record<string, string>) => {
         if (!formRef.current) return
+        // Fill text inputs
         Object.entries(s).forEach(([key, value]) => {
           const el = formRef.current?.elements.namedItem(key) as HTMLInputElement | null
           if (el) el.value = value
         })
+        // Fill toggles
+        const t: Record<string, boolean> = {}
+        Object.entries(s).forEach(([key, value]) => {
+          if (value === 'true' || value === 'false') t[key] = value === 'true'
+        })
+        setToggles(t)
       })
   }, [])
+
+  const setToggle = async (key: string, val: boolean) => {
+    setToggles(prev => ({ ...prev, [key]: val }))
+    await fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [key]: String(val) }),
+    })
+  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -48,6 +65,8 @@ export default function SettingsPage() {
         data[input.id] = input.value
       }
     })
+    // Also persist current toggles
+    Object.entries(toggles).forEach(([k, v]) => { data[k] = String(v) })
     await fetch('/api/admin/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -141,17 +160,20 @@ export default function SettingsPage() {
               <h3 className="text-h4 mb-4">Platform Features</h3>
               <div className="space-y-4">
                 {[
-                  { label: 'Enable client registration', description: 'Allow new clients to sign up', enabled: true },
-                  { label: 'Enable trial plans', description: 'Allow 14-day free trials', enabled: true },
-                  { label: 'Require email verification', description: 'Clients must verify email', enabled: false },
-                  { label: 'Enable public marketplace', description: 'Show plans on landing page', enabled: true },
+                  { label: 'Enable client registration', description: 'Allow new clients to sign up', key: 'feature_registration' },
+                  { label: 'Enable trial plans', description: 'Allow 14-day free trials', key: 'feature_trials' },
+                  { label: 'Require email verification', description: 'Clients must verify email', key: 'feature_email_verify' },
+                  { label: 'Enable public marketplace', description: 'Show plans on landing page', key: 'feature_marketplace' },
                 ].map((feature) => (
                   <div key={feature.label} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div>
                       <p className="font-medium text-text-primary">{feature.label}</p>
                       <p className="text-sm text-text-muted">{feature.description}</p>
                     </div>
-                    <Switch defaultChecked={feature.enabled} />
+                    <Switch
+                      checked={toggles[feature.key] ?? false}
+                      onCheckedChange={v => setToggle(feature.key, v)}
+                    />
                   </div>
                 ))}
               </div>
@@ -233,19 +255,22 @@ export default function SettingsPage() {
             <h2 className="text-h3 mb-6">Security Settings</h2>
             <div className="space-y-4">
               {[
-                { label: 'Two-factor authentication', description: 'Require 2FA for all admin accounts', enabled: true },
-                { label: 'Session timeout', description: 'Auto logout after inactivity', enabled: true },
-                { label: 'IP whitelist', description: 'Restrict admin access to specific IPs', enabled: false },
-                { label: 'Audit logging', description: 'Log all admin actions', enabled: true },
-              ].map((setting) => (
-                <div key={setting.label} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-text-primary">{setting.label}</p>
-                    <p className="text-sm text-text-muted">{setting.description}</p>
+                  { label: 'Two-factor authentication', description: 'Require 2FA for all admin accounts', key: 'security_2fa' },
+                  { label: 'Session timeout', description: 'Auto logout after inactivity', key: 'security_timeout' },
+                  { label: 'IP whitelist', description: 'Restrict admin access to specific IPs', key: 'security_ip_whitelist' },
+                  { label: 'Audit logging', description: 'Log all admin actions', key: 'security_audit_log' },
+                ].map((setting) => (
+                  <div key={setting.label} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-text-primary">{setting.label}</p>
+                      <p className="text-sm text-text-muted">{setting.description}</p>
+                    </div>
+                    <Switch
+                      checked={toggles[setting.key] ?? false}
+                      onCheckedChange={v => setToggle(setting.key, v)}
+                    />
                   </div>
-                  <Switch defaultChecked={setting.enabled} />
-                </div>
-              ))}
+                ))}
             </div>
           </Card>
         </TabsContent>
@@ -304,18 +329,21 @@ export default function SettingsPage() {
             <h2 className="text-h3 mb-6">Backup Settings</h2>
             <div className="space-y-4">
               {[
-                { label: 'Automatic backups', description: 'Daily automated backups', enabled: true },
-                { label: 'Backup retention', description: 'Keep backups for 30 days', enabled: true },
-                { label: 'Off-site storage', description: 'Backup to cloud storage', enabled: false },
-              ].map((setting) => (
-                <div key={setting.label} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-text-primary">{setting.label}</p>
-                    <p className="text-sm text-text-muted">{setting.description}</p>
+                  { label: 'Automatic backups', description: 'Daily automated backups', key: 'backup_auto' },
+                  { label: 'Backup retention', description: 'Keep backups for 30 days', key: 'backup_retention' },
+                  { label: 'Off-site storage', description: 'Backup to cloud storage', key: 'backup_offsite' },
+                ].map((setting) => (
+                  <div key={setting.label} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-text-primary">{setting.label}</p>
+                      <p className="text-sm text-text-muted">{setting.description}</p>
+                    </div>
+                    <Switch
+                      checked={toggles[setting.key] ?? false}
+                      onCheckedChange={v => setToggle(setting.key, v)}
+                    />
                   </div>
-                  <Switch defaultChecked={setting.enabled} />
-                </div>
-              ))}
+                ))}
               <div className="pt-4">
                 <Button variant="outline">Run Manual Backup</Button>
               </div>

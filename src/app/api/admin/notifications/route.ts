@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { neon } from '@neondatabase/serverless'
+import { sql as db } from '@/lib/db'
+import crypto from 'crypto'
 import { cookies } from 'next/headers'
 
-function getDb() {
-  const url = process.env.DATABASE_URL || process.env.POSTGRES_URL
-  if (!url) throw new Error('DATABASE_URL not set')
-  return neon(url)
-}
 
 async function requireAdmin() {
   const cookieStore = await cookies()
@@ -16,7 +12,6 @@ async function requireAdmin() {
 export async function GET() {
   if (!await requireAdmin()) return NextResponse.json({ message: 'Unauthorised' }, { status: 401 })
   try {
-    const db = getDb()
     const rows = await db`SELECT * FROM notifications ORDER BY created_at DESC LIMIT 50`
     return NextResponse.json(rows)
   } catch (error) {
@@ -27,7 +22,6 @@ export async function GET() {
 export async function PATCH(req: NextRequest) {
   if (!await requireAdmin()) return NextResponse.json({ message: 'Unauthorised' }, { status: 401 })
   try {
-    const db = getDb()
     const body = await req.json()
     if (body.markAllRead) {
       await db`UPDATE notifications SET read = true`
@@ -46,7 +40,6 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   if (!await requireAdmin()) return NextResponse.json({ message: 'Unauthorised' }, { status: 401 })
   try {
-    const db = getDb()
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
     if (!id) return NextResponse.json({ message: 'ID required' }, { status: 400 })
