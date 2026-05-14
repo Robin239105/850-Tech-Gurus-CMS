@@ -22,7 +22,7 @@ export async function GET(
 
     const [clients, settings, navRows, products] = await Promise.all([
       db`SELECT name, website, email, phone FROM clients WHERE id = ${clientId} LIMIT 1`,
-      db`SELECT key, value FROM client_settings WHERE client_id = ${clientId}`,
+      db`SELECT setting_key, setting_value FROM client_settings WHERE client_id = ${clientId}`,
       db`SELECT items FROM navigation_menus WHERE client_id = ${clientId} AND menu_name = 'Main Menu' LIMIT 1`,
       db`SELECT id, name, price, sale_price, image, description, category, status
          FROM products WHERE client_id = ${clientId} AND status = 'active'
@@ -35,7 +35,7 @@ export async function GET(
 
     const client = clients[0] as Record<string, string>
     const s = Object.fromEntries(
-      (settings as Record<string, string>[]).map(r => [r.key, r.value])
+      (settings as Record<string, string>[]).map(r => [r.setting_key, r.setting_value])
     )
 
     return NextResponse.json({

@@ -10,10 +10,9 @@ export async function GET(
   try {
     const { clientId } = await params
     const rows = await db`
-      SELECT settings
+      SELECT setting_key, setting_value
       FROM client_settings
       WHERE client_id = ${clientId}
-      LIMIT 1
     `
     const client = await db`
       SELECT name, website
@@ -21,8 +20,9 @@ export async function GET(
       WHERE id = ${clientId}
       LIMIT 1
     `
+    const settings = Object.fromEntries(rows.map((r: any) => [r.setting_key, r.setting_value]))
     return NextResponse.json(
-      { ...(rows[0]?.settings ?? {}), siteName: client[0]?.name, website: client[0]?.website },
+      { ...settings, siteName: client[0]?.name, website: client[0]?.website },
       { headers: { 'Access-Control-Allow-Origin': '*' } }
     )
   } catch (err) {

@@ -22,8 +22,8 @@ export async function GET() {
   if (!clientId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
-    const rows = await db`SELECT key, value FROM client_settings WHERE client_id = ${clientId}`
-    const settings = Object.fromEntries(rows.map((r) => [(r as Record<string, string>).key, (r as Record<string, string>).value]))
+    const rows = await db`SELECT setting_key, setting_value FROM client_settings WHERE client_id = ${clientId}`
+    const settings = Object.fromEntries(rows.map((r) => [(r as Record<string, string>).setting_key, (r as Record<string, string>).setting_value]))
     return NextResponse.json(settings)
   } catch {
     return NextResponse.json({})
@@ -38,9 +38,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json() as Record<string, string>
     for (const [key, value] of Object.entries(body)) {
       await db`
-        INSERT INTO client_settings (client_id, key, value)
-        VALUES (${clientId}, ${key}, ${JSON.stringify(value)}::jsonb)
-        ON CONFLICT (client_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+        INSERT INTO client_settings (client_id, setting_key, setting_value)
+        VALUES (${clientId}, ${key}, ${String(value)})
+        ON CONFLICT (client_id, setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = NOW()
       `
     }
     return NextResponse.json({ success: true })

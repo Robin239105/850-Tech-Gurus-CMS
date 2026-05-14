@@ -12,8 +12,8 @@ async function requireAdmin() {
 export async function GET() {
   if (!await requireAdmin()) return NextResponse.json({ message: 'Unauthorised' }, { status: 401 })
   try {
-    const rows = await db`SELECT key, value FROM platform_settings`
-    const settings = Object.fromEntries(rows.map((r) => [(r as Record<string, string>).key, (r as Record<string, string>).value]))
+    const rows = await db`SELECT setting_key, setting_value FROM platform_settings`
+    const settings = Object.fromEntries(rows.map((r) => [(r as Record<string, string>).setting_key, (r as Record<string, string>).setting_value]))
     return NextResponse.json(settings)
   } catch (error) {
     return NextResponse.json({ message: 'Database error', error: String(error) }, { status: 500 })
@@ -26,9 +26,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     for (const [key, value] of Object.entries(body)) {
       await db`
-        INSERT INTO platform_settings (key, value, updated_at)
-        VALUES (${key}, ${JSON.stringify(value)}::jsonb, NOW())
-        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+        INSERT INTO platform_settings (setting_key, setting_value, updated_at)
+        VALUES (${key}, ${String(value)}, NOW())
+        ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = NOW()
       `
     }
     return NextResponse.json({ success: true })
